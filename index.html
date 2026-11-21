@@ -19,6 +19,11 @@
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
+    <!-- Firebase SDK (sincronización en la nube Firestore) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -83,6 +88,7 @@
                 </h1>
                 <p class="text-[11px] text-slate-400">
                     Punto de Venta y Pedidos por QR
+                    <span id="cloud-status-pill" class="ml-1.5 px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 text-[9px] font-bold">Local</span>
                 </p>
             </div>
         </div>
@@ -196,6 +202,9 @@
                     </button>
                     <button onclick="setAdminSubtab('reports')" id="admin-nav-reports" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white whitespace-nowrap">
                         <i class="fa-solid fa-chart-line mr-1.5"></i> Corte de Caja
+                    </button>
+                    <button onclick="setAdminSubtab('cloud-sync')" id="admin-nav-cloud-sync" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white whitespace-nowrap">
+                        <i class="fa-solid fa-cloud mr-1.5"></i> Nube (Firebase)
                     </button>
                 </div>
 
@@ -538,6 +547,44 @@
 
                 </div>
 
+                <!-- SUB-VISTA 7: RESPALDO Y SINCRONIZACIÓN EN LA NUBE (FIREBASE) -->
+                <div id="admin-sub-cloud-sync" class="hidden space-y-6">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4 max-w-2xl">
+                        <div class="border-b border-slate-800 pb-3">
+                            <h4 class="font-extrabold text-white text-sm flex items-center gap-2">
+                                <i class="fa-solid fa-cloud text-cyan-400"></i> Sincronización en la Nube (Firebase Firestore)
+                            </h4>
+                            <p class="text-xs text-slate-400 mt-1">Conecta tu proyecto de Firebase para que cuando un cliente escanee su QR desde su celular vea lo que pidió y el total en tiempo real, y al pedir la cuenta avise a la mesera y al admin.</p>
+                        </div>
+
+                        <div class="space-y-3 text-xs">
+                            <div class="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
+                                <span class="font-semibold text-slate-300">Activar sincronización en la nube:</span>
+                                <input type="checkbox" id="cloud-enabled-checkbox" class="w-4 h-4 accent-cyan-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-slate-300 font-semibold mb-1">ID del Restaurante / Sala en la Nube:</label>
+                                <input type="text" id="cloud-room-id" placeholder="ej. fonda-guille-salon" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-cyan-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-slate-300 font-semibold mb-1">Configuración JSON de Firebase (apiKey, projectId, etc.):</label>
+                                <textarea id="cloud-firebase-json" rows="6" placeholder='{"apiKey":"...","projectId":"..."}' class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono text-[11px] focus:outline-none focus:border-cyan-500"></textarea>
+                            </div>
+
+                            <div class="flex flex-wrap gap-2 pt-2">
+                                <button onclick="saveCloudConfigAndConnect()" class="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl shadow-md">
+                                    Guardar y Conectar Nube
+                                </button>
+                                <button onclick="pushLocalStateToCloud()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 font-bold rounded-xl">
+                                    Subir Datos Locales a la Nube
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </section>
 
@@ -826,8 +873,17 @@
 
     <!-- ================= LÓGICA JAVASCRIPT ================= -->
     <script>
-        // --- 1. CONFIGURACIÓN INICIAL ---
+        // --- 1. CONFIGURACIÓN INICIAL Y FIREBASE ---
         const ADMIN_PASSCODE = 'admin2027';
+        const FIREBASE_CONFIG = {
+          apiKey: "AIzaSyA62K0surGjYVvhB9ZTAjzb_h-ML_oDAJE",
+          authDomain: "restaurante-9bb07.firebaseapp.com",
+          projectId: "restaurante-9bb07",
+          storageBucket: "restaurante-9bb07.firebasestorage.app",
+          messagingSenderId: "385838515758",
+          appId: "1:385838515758:web:c1017a8cf896ff9fed81bf"
+        };
+        const FIRESTORE_ROOM_DOC = 'restaurante-principal';
         const ALERT_CHANNEL_NAME = 'gastropos_bill_alerts_v1';
         const ALERT_STORAGE_KEY = 'gastro_pro_v3_last_bill_alert';
 
@@ -863,6 +919,12 @@
             soundAlerts: true
         };
 
+        const INITIAL_CLOUD_CONFIG = {
+            enabled: false,
+            roomId: 'restaurante-principal',
+            firebaseJson: ''
+        };
+
         // --- ESTADO DE LA APLICACIÓN ---
         let tables = JSON.parse(localStorage.getItem('gastro_pro_v3_tables')) || INITIAL_TABLES;
         let staff = JSON.parse(localStorage.getItem('gastro_pro_v3_staff')) || INITIAL_STAFF;
@@ -875,6 +937,7 @@
             method: 'Efectivo'
         }));
         let storeConfig = { ...INITIAL_STORE_CONFIG, ...(JSON.parse(localStorage.getItem('gastro_pro_v3_config')) || {}) };
+        let cloudConfig = { ...INITIAL_CLOUD_CONFIG, ...(JSON.parse(localStorage.getItem('gastro_pro_v3_cloud')) || {}) };
 
         let currentRole = 'waitress';
         let isAdminUnlocked = false;
@@ -888,6 +951,9 @@
         let prodScanner = null;
         let uploadedBase64Photo = '';
         let printAllTablesMode = false;
+        let cloudDb = null;
+        let cloudUnsubscribe = null;
+        let isApplyingCloudUpdate = false;
         let audioCtxInstance = null;
         let alertChannel = null;
         let lastPlayedAlertId = '';
@@ -943,6 +1009,7 @@
             setupAlertListeners();
             startLiveClock();
             syncStoreConfigInputs();
+            syncCloudConfigInputs();
             updateSoundToggleUI();
             populateWaitressSessionSelect();
             renderWaitressTablesList();
@@ -956,6 +1023,7 @@
             populatePrintDropdown();
             populateCustomerDropdown();
             applyUrlMesaParamIfPresent();
+            initFirebaseSync();
         });
 
         function unlockAudioContextOnce() {
@@ -973,12 +1041,16 @@
         document.addEventListener('pointerdown', unlockAudioContextOnce, { passive: true });
         document.addEventListener('keydown', unlockAudioContextOnce, { passive: true });
 
-        function saveData() {
+        function saveData(skipCloud = false) {
             localStorage.setItem('gastro_pro_v3_tables', JSON.stringify(tables));
             localStorage.setItem('gastro_pro_v3_staff', JSON.stringify(staff));
             localStorage.setItem('gastro_pro_v3_catalog', JSON.stringify(catalog));
             localStorage.setItem('gastro_pro_v3_sales', JSON.stringify(salesHistory));
             localStorage.setItem('gastro_pro_v3_config', JSON.stringify(storeConfig));
+
+            if (!skipCloud && !isApplyingCloudUpdate && cloudDb) {
+                pushStateToFirestore(true);
+            }
         }
 
         function refreshAllTableViews() {
@@ -1129,7 +1201,7 @@
         function toggleSoundAlerts() {
             unlockAudioContextOnce();
             storeConfig.soundAlerts = !storeConfig.soundAlerts;
-            saveData();
+            saveData(true);
             updateSoundToggleUI();
             showToast(storeConfig.soundAlerts ? 'Alertas de sonido y voz activadas para mesera y admin' : 'Alertas de sonido y voz silenciadas', 'info');
         }
@@ -1943,7 +2015,7 @@
 
         // --- MODO 2: ADMIN SUB-PESTAÑAS ---
         function setAdminSubtab(sub) {
-            const subtabs = ['live-monitor', 'manage-tables', 'manage-staff', 'manage-catalog', 'print-menu', 'reports'];
+            const subtabs = ['live-monitor', 'manage-tables', 'manage-staff', 'manage-catalog', 'print-menu', 'reports', 'cloud-sync'];
             subtabs.forEach(s => {
                 const view = document.getElementById(`admin-sub-${s}`);
                 const btn = document.getElementById(`admin-nav-${s}`);
@@ -1969,6 +2041,7 @@
                 renderPrintableSheet();
             }
             if (sub === 'reports') renderAdminReports();
+            if (sub === 'cloud-sync') syncCloudConfigInputs();
         }
 
         function renderAdminLiveMonitor() {
@@ -2646,6 +2719,214 @@
                 saveData();
                 renderAdminReports();
                 showToast('Turno de ventas reiniciado', 'info');
+            }
+        }
+
+        // --- SINCRONIZACIÓN EN LA NUBE (FIREBASE FIRESTORE) ---
+        function syncCloudConfigInputs() {
+            const cb = document.getElementById('cloud-enabled-checkbox');
+            const roomInput = document.getElementById('cloud-room-id');
+            const jsonInput = document.getElementById('cloud-firebase-json');
+            if (cb) cb.checked = !!cloudConfig.enabled;
+            if (roomInput) roomInput.value = cloudConfig.roomId || 'restaurante-principal';
+            if (jsonInput) jsonInput.value = cloudConfig.firebaseJson || '';
+        }
+
+        function updateCloudPill(text, active) {
+            const pill = document.getElementById('cloud-status-pill');
+            if (!pill) return;
+            pill.textContent = text;
+            pill.className = active
+                ? "ml-1.5 px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[9px] font-bold"
+                : "ml-1.5 px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 text-[9px] font-bold";
+        }
+
+        function saveCloudConfigAndConnect() {
+            const enabled = document.getElementById('cloud-enabled-checkbox').checked;
+            const roomId = (document.getElementById('cloud-room-id').value || 'restaurante-principal').trim();
+            const firebaseJson = document.getElementById('cloud-firebase-json').value.trim();
+
+            cloudConfig = { enabled, roomId, firebaseJson };
+            localStorage.setItem('gastro_pro_v3_cloud', JSON.stringify(cloudConfig));
+
+            if (cloudUnsubscribe) {
+                try { cloudUnsubscribe(); } catch (e) {}
+                cloudUnsubscribe = null;
+            }
+            cloudDb = null;
+
+            if (!enabled) {
+                updateCloudPill('Local', false);
+                showToast('Sincronización en la nube desactivada (modo local)', 'info');
+                return;
+            }
+
+            connectFirebaseCloud(true);
+        }
+
+        function connectFirebaseCloud(showFeedback = true) {
+            if (typeof firebase === 'undefined' || !cloudConfig.firebaseJson) {
+                if (showFeedback) showToast('Ingresa la configuración JSON de Firebase', 'warning');
+                return;
+            }
+
+            try {
+                const parsed = JSON.parse(cloudConfig.firebaseJson);
+                const appName = `gastro_${cloudConfig.roomId}`;
+                const existingApp = firebase.apps.find(a => a.name === appName);
+                const app = existingApp || firebase.initializeApp(parsed, appName);
+                cloudDb = app.firestore();
+
+                const docRef = cloudDb.collection('gastropos_rooms').doc(cloudConfig.roomId);
+                updateCloudPill('Nube Activa', true);
+
+                cloudUnsubscribe = docRef.onSnapshot((snap) => {
+                    if (!snap.exists) return;
+                    const data = snap.data();
+                    if (!data) return;
+
+                    isApplyingCloudUpdate = true;
+                    const previousTables = tables;
+                    if (Array.isArray(data.tables)) tables = data.tables;
+                    if (Array.isArray(data.staff)) staff = data.staff;
+                    if (Array.isArray(data.catalog)) {
+                        catalog = data.catalog.map(p => ({ ...p, available: p.available !== false }));
+                    }
+                    if (Array.isArray(data.salesHistory)) {
+                        salesHistory = data.salesHistory.map(s => ({ ...s, method: 'Efectivo' }));
+                    }
+                    if (data.storeConfig) {
+                        storeConfig = { ...INITIAL_STORE_CONFIG, ...data.storeConfig };
+                        syncStoreConfigInputs();
+                    }
+
+                    tables.forEach(t => {
+                        const prev = previousTables.find(pt => pt.id === t.id);
+                        if (t.status === 'paying' && (!prev || prev.status !== 'paying')) {
+                            broadcastBillAlert(t.name, t.waiter);
+                        }
+                    });
+
+                    saveData(true);
+                    populateWaitressSessionSelect();
+                    refreshAllTableViews();
+                    renderAdminStaff();
+                    renderAdminCatalog();
+                    renderAdminReports();
+                    populatePrintDropdown();
+                    isApplyingCloudUpdate = false;
+                });
+
+                if (showFeedback) showToast(`Conectado a la nube en "${cloudConfig.roomId}"`, 'success');
+            } catch (e) {
+                updateCloudPill('Error Nube', false);
+                if (showFeedback) showToast('JSON de Firebase inválido o sin conexión', 'error');
+            }
+        }
+
+        async function pushLocalStateToCloud(silent = false) {
+            if (!cloudDb || !cloudConfig.enabled) {
+                if (!silent) showToast('Primero activa y conecta Firebase en la pestaña Nube', 'warning');
+                return;
+            }
+
+            try {
+                await cloudDb.collection('gastropos_rooms').doc(cloudConfig.roomId).set({
+                    tables,
+                    staff,
+                    catalog,
+                    salesHistory,
+                    storeConfig,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+
+                if (!silent) showToast('Datos locales respaldados en la nube', 'success');
+            } catch (e) {
+                if (!silent) showToast('No se pudo subir el respaldo a la nube', 'error');
+            }
+        }
+
+        // --- SINCRONIZACIÓN EN TIEMPO REAL CON FIRESTORE ---
+
+        function initFirebaseSync() {
+            if (typeof firebase === 'undefined') {
+                updateCloudPill('Local', false);
+                return;
+            }
+            try {
+                const appName = 'gastropos_restaurante_9bb07';
+                const existingApp = firebase.apps.find(a => a.name === appName);
+                const app = existingApp || firebase.initializeApp(FIREBASE_CONFIG, appName);
+                cloudDb = app.firestore();
+
+                const docRef = cloudDb.collection('gastropos_rooms').doc(FIRESTORE_ROOM_DOC);
+                updateCloudPill('Nube Activa', true);
+
+                if (cloudUnsubscribe) {
+                    try { cloudUnsubscribe(); } catch (e) {}
+                }
+
+                cloudUnsubscribe = docRef.onSnapshot((snap) => {
+                    if (!snap.exists) {
+                        pushStateToFirestore(true);
+                        return;
+                    }
+                    const data = snap.data();
+                    if (!data) return;
+
+                    isApplyingCloudUpdate = true;
+                    const previousTables = tables;
+                    if (Array.isArray(data.tables)) tables = data.tables;
+                    if (Array.isArray(data.staff)) staff = data.staff;
+                    if (Array.isArray(data.catalog)) {
+                        catalog = data.catalog.map(p => ({ ...p, available: p.available !== false }));
+                    }
+                    if (Array.isArray(data.salesHistory)) {
+                        salesHistory = data.salesHistory.map(s => ({ ...s, method: 'Efectivo' }));
+                    }
+                    if (data.storeConfig) {
+                        storeConfig = { ...INITIAL_STORE_CONFIG, ...data.storeConfig };
+                        syncStoreConfigInputs();
+                        updateSoundToggleUI();
+                    }
+
+                    tables.forEach(t => {
+                        const prev = previousTables.find(pt => pt.id === t.id);
+                        if (t.status === 'paying' && (!prev || prev.status !== 'paying')) {
+                            broadcastBillAlert(t.name, t.waiter);
+                        }
+                    });
+
+                    saveData(true);
+                    populateWaitressSessionSelect();
+                    refreshAllTableViews();
+                    renderAdminStaff();
+                    renderAdminCatalog();
+                    renderAdminReports();
+                    populatePrintDropdown();
+                    isApplyingCloudUpdate = false;
+                }, () => {
+                    updateCloudPill('Local', false);
+                });
+            } catch (e) {
+                updateCloudPill('Local', false);
+            }
+        }
+
+        async function pushStateToFirestore(silent = false) {
+            if (!cloudDb) return;
+            try {
+                await cloudDb.collection('gastropos_rooms').doc(FIRESTORE_ROOM_DOC).set({
+                    tables,
+                    staff,
+                    catalog,
+                    salesHistory,
+                    storeConfig,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+                updateCloudPill('Nube Activa', true);
+            } catch (e) {
+                if (!silent) showToast('No se pudo sincronizar con Firebase', 'error');
             }
         }
 
