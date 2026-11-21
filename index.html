@@ -955,6 +955,8 @@
 
         let currentRole = 'waitress';
         let customerLockedMesaCode = '';
+        let cloudSyncStatus = { state: 'connecting', msg: 'Conectando…' };
+        let lastCloudErrorToastAt = 0;
         let isAdminUnlocked = false;
         let currentWaitressSession = '';
         let activeWaitressTableId = null;
@@ -1596,9 +1598,38 @@
         }
 
         // --- SOLUCIÓN DE ERRORES EN MESAS (CANCELAR CUENTA PEDIDA Y LIBERAR MESA) ---
+        async function setTableStatusRemote(tableId, status) {
+            const t = tables.find(x => x.id === tableId);
+            if (t) t.status = status;
+            saveData(true);
+            refreshAllTableViews();
+            if (!cloudDb) {
+                showToast('Sin conexión con el restaurante', 'error');
+                return;
+            }
+            try {
+                const ref = cloudDb.collection('gastropos_rooms').doc(FIRESTORE_ROOM_DOC);
+                await cloudDb.runTransaction(async (tx) => {
+                    const snap = await tx.get(ref);
+                    if (!snap.exists) throw new Error('sin-datos');
+                    const data = snap.data();
+                    const arr = (data.tables || []).map(x => x.id === tableId ? { ...x, status } : x);
+                    tx.update(ref, { tables: arr, updatedAt: new Date().toISOString() });
+                });
+            } catch (e) {
+                showToast('No se pudo avisar a la mesera. Intenta de nuevo o llámala.', 'error');
+            }
+        }
+
         function cancelBillRequest(tableId) {
             const table = tables.find(t => t.id === tableId);
             if (!table) return;
+
+            if (customerLockedMesaCode && table.status === 'paying') {
+                setTableStatusRemote(table.id, 'occupied');
+                showToast('Solicitud de cuenta cancelada', 'info');
+                return;
+            }
 
             if (table.status === 'paying') {
                 table.status = 'occupied';
@@ -1812,9 +1843,7 @@
                 ? `<button onclick="cancelBillRequest(${table.id})" class="py-2.5 px-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md" title="Regresar mesa a estado Ocupada">
                         <i class="fa-solid fa-rotate-left"></i> CANCELAR CUENTA PEDIDA
                    </button>`
-                : `<button onclick="requestTableBill()" class="py-2.5 px-3 bg-purple-700 hover:bg-purple-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md">
-                        <i class="fa-solid fa-receipt"></i> PEDIR CUENTA
-                   </button>`;
+                : '';
 
             container.innerHTML = `
                 <div class="p-4 bg-slate-950 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
@@ -1878,7 +1907,7 @@
                         <span class="text-emerald-400 text-lg">$${subtotal.toFixed(2)} MXN</span>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid ${table.status === 'paying' ? 'grid-cols-2' : 'grid-cols-1'} gap-2">
                         ${billActionButton}
                         <button onclick="openCheckoutSaleModal(${table.id})" class="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md">
                             <i class="fa-solid fa-money-bill-wave"></i> COBRAR EFECTIVO
@@ -2889,11 +2918,17 @@
 
                 cloudUnsubscribe = docRef.onSnapshot((snap) => {
                     if (!snap.exists) {
+                        if (customerLockedMesaCode) {
+                            cloudSyncStatus = { state: 'error', msg: 'El restaurante aún no ha publicado datos' };
+                            renderCustomerView();
+                            return;
+                        }
                         pushStateToFirestore(true);
                         return;
                     }
                     const data = snap.data();
                     if (!data) return;
+                    cloudSyncStatus = { state: 'ok', msg: 'En vivo' };
 
                     isApplyingCloudUpdate = true;
                     const previousTables = tables;
@@ -2926,8 +2961,12 @@
                     renderAdminReports();
                     populatePrintDropdown();
                     isApplyingCloudUpdate = false;
-                }, () => {
+                }, (err) => {
                     updateCloudPill('Local', false);
+                    const code = (err && err.code) ? err.code : 'error';
+                    cloudSyncStatus = { state: 'error', msg: 'Sin conexión con el restaurante (' + code + ')' };
+                    if (customerLockedMesaCode) renderCustomerView();
+                    else showToast('No se pudo leer la nube (' + code + '). Revisa las reglas de Firestore.', 'error');
                 });
             } catch (e) {
                 updateCloudPill('Local', false);
@@ -2947,7 +2986,12 @@
                 }, { merge: true });
                 updateCloudPill('Nube Activa', true);
             } catch (e) {
-                if (!silent) showToast('No se pudo sincronizar con Firebase', 'error');
+                updateCloudPill('Error Nube', false);
+                const now = Date.now();
+                if (now - lastCloudErrorToastAt > 15000) {
+                    lastCloudErrorToastAt = now;
+                    showToast('No se pudo guardar en la nube (' + ((e && e.code) ? e.code : 'error') + '). Los clientes no verán los cambios.', 'error');
+                }
             }
         }
 
@@ -3030,6 +3074,7 @@
                     <span class="px-3 py-1 bg-orange-500/20 text-orange-400 rounded-full text-xs font-bold border border-orange-500/30">${table.name}</span>
                     <h3 class="text-lg font-black text-white">Tu Consumo en Vivo</h3>
                     <p class="text-[10px] text-orange-400 font-semibold">${table.status === 'free' ? 'Mesa disponible' : `Te atiende: ${table.waiter}`}</p>
+                    <p class="text-[10px] font-bold ${cloudSyncStatus.state === 'ok' ? 'text-emerald-400' : (cloudSyncStatus.state === 'error' ? 'text-rose-400' : 'text-amber-300')}">${cloudSyncStatus.state === 'ok' ? '🟢 En vivo' : (cloudSyncStatus.state === 'error' ? '🔴 ' : '🟡 ') + cloudSyncStatus.msg}</p>
                 </div>
 
                 <div class="space-y-2">
@@ -3083,6 +3128,12 @@
 
             if (table.status === 'free' || table.items.length === 0) {
                 showToast('Esta mesa aún no tiene consumo registrado para pedir la cuenta', 'warning');
+                return;
+            }
+
+            if (customerLockedMesaCode) {
+                setTableStatusRemote(table.id, 'paying');
+                showToast('¡Listo! Avisamos a tu mesera que pediste la cuenta', 'success');
                 return;
             }
 
