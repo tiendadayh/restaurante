@@ -845,10 +845,15 @@
                         <strong class="text-orange-400" id="checkout-waiter-name">Sofía Martínez</strong>
                     </div>
                     <div class="flex justify-between text-base font-black text-white pt-2 border-t border-slate-800">
-                        <span>TOTAL NETO A COBRAR:</span>
+                        <span id="checkout-total-label">TOTAL NETO A COBRAR:</span>
                         <strong class="text-emerald-400 text-lg" id="checkout-grand-total">$0.00 MXN</strong>
                     </div>
                 </div>
+
+                <button type="button" id="btn-toggle-split" onclick="toggleCheckoutSplit()" class="w-full py-2.5 bg-sky-950/60 hover:bg-sky-900/60 text-sky-300 border border-sky-500/30 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all">
+                    <i class="fa-solid fa-people-arrows"></i> <span id="btn-toggle-split-text">Dividir cuenta</span>
+                </button>
+                <div id="checkout-split-panel" class="hidden space-y-3"></div>
 
                 <div>
                     <label class="block text-slate-300 font-semibold mb-1.5">Forma de pago</label>
@@ -872,7 +877,7 @@
 
             <div class="flex gap-3 pt-2">
                 <button onclick="closeModal('modal-checkout-sale')" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl">Cancelar</button>
-                <button onclick="confirmFinalCheckout()" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/20">CONFIRMAR COBRO</button>
+                <button id="btn-confirm-checkout" onclick="confirmFinalCheckout()" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/20">CONFIRMAR COBRO</button>
             </div>
         </div>
     </div>
@@ -962,6 +967,9 @@
         let pendingReleaseTableId = null;
         const PAYMENT_METHOD_CASH = 'Efectivo';
         let selectedPaymentMethod = 'Efectivo';
+        let checkoutSplitMode = false;
+        let checkoutSplitQty = {};
+        let checkoutSplitPeople = 2;
         let uploadedBase64Photo = '';
         let printAllTablesMode = false;
         let cloudDb = null;
@@ -2205,10 +2213,12 @@
 
             pendingCheckoutTableId = table.id;
             setCheckoutPaymentMethod('Efectivo');
-            const total = table.items.reduce((s, i) => s + (i.price * i.qty), 0);
             document.getElementById('checkout-table-name').textContent = table.name;
             document.getElementById('checkout-waiter-name').textContent = table.waiter;
-            document.getElementById('checkout-grand-total').textContent = `$${total.toFixed(2)} MXN`;
+            checkoutSplitMode = false;
+            checkoutSplitQty = {};
+            checkoutSplitPeople = Math.max(2, table.guests || 2);
+            refreshCheckoutSplitUI(table);
             const phoneInput = document.getElementById('checkout-phone-input');
             const phoneHint = document.getElementById('checkout-phone-hint');
             phoneInput.value = table.customerPhone ? formatPhoneDisplay(table.customerPhone) : '';
@@ -2225,7 +2235,15 @@
             const table = tables.find(t => t.id === targetId);
             if (!table) return;
 
-            const total = table.items.reduce((s, i) => s + (i.price * i.qty), 0);
+            // Qué se cobra ahora: toda la cuenta o solo lo seleccionado al dividir
+            const chargeItems = getCheckoutChargeItems(table);
+            if (chargeItems.length === 0) {
+                showToast('Selecciona al menos un platillo para cobrar', 'warning');
+                return;
+            }
+            const total = chargeItems.reduce((s, i) => s + (i.price * i.qty), 0);
+            const tableTotalBefore = table.items.reduce((s, i) => s + (i.price * i.qty), 0);
+            const isPartial = total < tableTotalBefore - 0.001;
             const folio = 'V-' + Math.floor(100000 + Math.random() * 900000);
 
             const phoneRaw = (document.getElementById('checkout-phone-input')?.value || '').trim();
@@ -2247,7 +2265,8 @@
                 method: selectedPaymentMethod,
                 guests: table.guests || 0,
                 phone: salePhone,
-                items: table.items.map(i => ({ name: i.name, price: i.price, qty: i.qty, notes: i.notes || '' })),
+                partial: isPartial,
+                items: chargeItems.map(i => ({ name: i.name, price: i.price, qty: i.qty, notes: i.notes || '' })),
                 total: total
             });
 
@@ -2257,23 +2276,150 @@
                 s.salesTotal = (s.salesTotal || 0) + total;
             }
 
-            table.status = 'free';
-            table.items = [];
-            table.guests = 0;
-            table.calling = false;
-            table.customerPhone = '';
+            if (isPartial) {
+                // Cobro parcial: se descuenta solo lo cobrado y la mesa sigue abierta
+                chargeItems.forEach(ci => {
+                    const it = table.items.find(i => i.sku === ci.sku);
+                    if (it) it.qty -= ci.qty;
+                });
+                table.items = table.items.filter(i => i.qty > 0);
+                if (table.status === 'paying') table.status = 'occupied';
+            } else {
+                table.status = 'free';
+                table.items = [];
+                table.guests = 0;
+                table.calling = false;
+                table.customerPhone = '';
 
-            if (activeWaitressTableId === table.id) {
-                activeWaitressTableId = null;
+                if (activeWaitressTableId === table.id) {
+                    activeWaitressTableId = null;
+                }
             }
             pendingCheckoutTableId = null;
+            checkoutSplitMode = false;
+            checkoutSplitQty = {};
 
             saveData();
             closeModal('modal-checkout-sale');
             refreshAllTableViews();
             renderAdminReports();
-            showToast(`¡Venta ${folio} por $${total.toFixed(2)} cobrada por ${selectedPaymentMethod.toLowerCase()}! Mesa liberada.`, 'success');
+            if (isPartial) {
+                const restante = table.items.reduce((s, i) => s + (i.price * i.qty), 0);
+                showToast(`Cobro parcial ${folio} por $${total.toFixed(2)} (${selectedPaymentMethod.toLowerCase()}). Faltan $${restante.toFixed(2)} en ${table.name}.`, 'success');
+            } else {
+                showToast(`¡Venta ${folio} por $${total.toFixed(2)} cobrada por ${selectedPaymentMethod.toLowerCase()}! Mesa liberada.`, 'success');
+            }
             if (salePhone) openTicketModalForSale(folio);
+        }
+
+        // --- DIVIDIR CUENTA (cobro parcial por platillos) ---
+        function getCheckoutChargeItems(table) {
+            if (!checkoutSplitMode) {
+                return table.items.map(i => ({ sku: i.sku, name: i.name, price: i.price, qty: i.qty, notes: i.notes || '' }));
+            }
+            return table.items
+                .filter(i => (checkoutSplitQty[i.sku] || 0) > 0)
+                .map(i => ({ sku: i.sku, name: i.name, price: i.price, qty: Math.min(checkoutSplitQty[i.sku], i.qty), notes: i.notes || '' }));
+        }
+
+        function toggleCheckoutSplit() {
+            const table = tables.find(t => t.id === pendingCheckoutTableId);
+            if (!table) return;
+            checkoutSplitMode = !checkoutSplitMode;
+            checkoutSplitQty = {};
+            refreshCheckoutSplitUI(table);
+        }
+
+        function changeSplitQty(sku, delta) {
+            const table = tables.find(t => t.id === pendingCheckoutTableId);
+            if (!table) return;
+            const item = table.items.find(i => i.sku === sku);
+            if (!item) return;
+            const next = Math.max(0, Math.min(item.qty, (checkoutSplitQty[sku] || 0) + delta));
+            checkoutSplitQty[sku] = next;
+            refreshCheckoutSplitUI(table);
+        }
+
+        function selectAllSplit() {
+            const table = tables.find(t => t.id === pendingCheckoutTableId);
+            if (!table) return;
+            table.items.forEach(i => { checkoutSplitQty[i.sku] = i.qty; });
+            refreshCheckoutSplitUI(table);
+        }
+
+        function changeSplitPeople(delta) {
+            const table = tables.find(t => t.id === pendingCheckoutTableId);
+            if (!table) return;
+            checkoutSplitPeople = Math.max(2, Math.min(20, checkoutSplitPeople + delta));
+            refreshCheckoutSplitUI(table);
+        }
+
+        function refreshCheckoutSplitUI(table) {
+            const panel = document.getElementById('checkout-split-panel');
+            const toggleText = document.getElementById('btn-toggle-split-text');
+            const totalLabel = document.getElementById('checkout-total-label');
+            const totalEl = document.getElementById('checkout-grand-total');
+            const confirmBtn = document.getElementById('btn-confirm-checkout');
+            if (!panel) return;
+
+            const tableTotal = table.items.reduce((s, i) => s + (i.price * i.qty), 0);
+
+            if (!checkoutSplitMode) {
+                panel.classList.add('hidden');
+                panel.innerHTML = '';
+                if (toggleText) toggleText.textContent = 'Dividir cuenta';
+                if (totalLabel) totalLabel.textContent = 'TOTAL NETO A COBRAR:';
+                if (totalEl) totalEl.textContent = `$${tableTotal.toFixed(2)} MXN`;
+                if (confirmBtn) confirmBtn.textContent = 'CONFIRMAR COBRO';
+                return;
+            }
+
+            const chosen = getCheckoutChargeItems(table);
+            const chosenTotal = chosen.reduce((s, i) => s + (i.price * i.qty), 0);
+            const perPerson = tableTotal / checkoutSplitPeople;
+
+            panel.classList.remove('hidden');
+            panel.innerHTML = `
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-3 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">¿Qué paga esta persona?</p>
+                        <button type="button" onclick="selectAllSplit()" class="text-[11px] font-bold text-sky-300 hover:underline">Seleccionar todo</button>
+                    </div>
+                    ${table.items.map(item => {
+                        const q = checkoutSplitQty[item.sku] || 0;
+                        return `
+                            <div class="flex items-center justify-between gap-2 ${q > 0 ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-slate-900 border-slate-800'} border rounded-xl p-2">
+                                <div class="min-w-0">
+                                    <p class="text-xs font-bold text-white truncate">${escapeHtmlText(item.name)}</p>
+                                    <p class="text-[10px] text-slate-400">$${item.price.toFixed(2)} c/u • quedan ${item.qty}</p>
+                                </div>
+                                <div class="flex items-center bg-slate-950 border border-slate-700 rounded-lg shrink-0">
+                                    <button type="button" onclick="changeSplitQty('${item.sku}', -1)" class="w-9 h-9 text-base text-white font-bold">-</button>
+                                    <span class="px-2 text-sm font-bold ${q > 0 ? 'text-emerald-400' : 'text-slate-500'}">${q}</span>
+                                    <button type="button" onclick="changeSplitQty('${item.sku}', 1)" class="w-9 h-9 text-base text-white font-bold">+</button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                    <p class="text-[10px] text-slate-500">Cobra a cada persona por separado: elige lo suyo, cobra y repite con la siguiente. La mesa se libera al cobrar lo último.</p>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-3 flex items-center justify-between gap-2">
+                    <div>
+                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Partes iguales (solo referencia)</p>
+                        <p class="text-xs text-slate-300 mt-0.5">Entre <strong class="text-white">${checkoutSplitPeople}</strong> personas: <strong class="text-sky-300 text-sm">$${perPerson.toFixed(2)}</strong> c/u</p>
+                    </div>
+                    <div class="flex items-center bg-slate-900 border border-slate-700 rounded-lg shrink-0">
+                        <button type="button" onclick="changeSplitPeople(-1)" class="w-9 h-9 text-base text-white font-bold">-</button>
+                        <button type="button" onclick="changeSplitPeople(1)" class="w-9 h-9 text-base text-white font-bold">+</button>
+                    </div>
+                </div>
+            `;
+
+            if (toggleText) toggleText.textContent = 'Cobrar la cuenta completa';
+            if (totalLabel) totalLabel.textContent = 'A COBRAR AHORA:';
+            if (totalEl) totalEl.textContent = `$${chosenTotal.toFixed(2)} MXN`;
+            if (confirmBtn) confirmBtn.textContent = chosen.length ? `COBRAR $${chosenTotal.toFixed(2)}` : 'ELIGE PLATILLOS';
         }
 
         // --- MODO 2: ADMIN SUB-PESTAÑAS ---
@@ -2960,7 +3106,7 @@
                 tr.className = "hover:bg-slate-800/40 transition-colors";
                 tr.innerHTML = `
                     <td class="p-4 font-mono font-bold text-amber-400">${s.id}</td>
-                    <td class="p-4 font-bold text-white">${s.tableName}</td>
+                    <td class="p-4 font-bold text-white">${s.tableName}${s.partial ? ' <span class="ml-1 px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[9px] font-bold">parcial</span>' : ''}</td>
                     <td class="p-4 text-orange-400 font-semibold">${s.waiter}</td>
                     <td class="p-4 text-slate-400">${s.time}</td>
                     <td class="p-4 font-semibold ${s.method === 'Transferencia' ? 'text-sky-300' : 'text-emerald-300'}">${s.method || 'Efectivo'}</td>
