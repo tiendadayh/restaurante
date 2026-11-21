@@ -52,6 +52,20 @@
             border: 1px solid rgba(51, 65, 85, 0.5);
         }
 
+        /* Modo cliente (entrada por QR con ?mesa=...): solo ve su mesa */
+        body.customer-locked #role-nav,
+        body.customer-locked #header-tools,
+        body.customer-locked #paying-tables-alert-banner,
+        body.customer-locked #customer-sim-selector,
+        body.customer-locked #cloud-status-pill { display: none !important; }
+        body.customer-locked #role-view-customer { padding: 0; justify-content: flex-start; }
+        body.customer-locked #customer-phone-frame {
+            max-width: 100%; border-width: 0; border-radius: 0; height: calc(100dvh - 64px);
+        }
+
+        #table-qr-reader video, #prod-qr-reader video { width: 100% !important; height: auto !important; object-fit: cover; }
+        #table-qr-reader, #prod-qr-reader { border: none !important; }
+
         @media print {
             body * { visibility: hidden; }
             #printable-menu-sheet, #printable-menu-sheet * { visibility: visible; }
@@ -94,7 +108,7 @@
         </div>
 
         <!-- Selector de Modo Operativo -->
-        <nav class="flex items-center bg-slate-900/90 p-1 rounded-2xl border border-slate-800 shadow-inner">
+        <nav id="role-nav" class="flex items-center bg-slate-900/90 p-1 rounded-2xl border border-slate-800 shadow-inner">
             <button onclick="switchRole('waitress')" id="role-btn-waitress" class="px-3 md:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 bg-orange-600 text-white shadow-md">
                 <i class="fa-solid fa-user-tie"></i>
                 <span>Modo Mesera</span>
@@ -111,7 +125,7 @@
         </nav>
 
         <!-- Control de Audio de Alertas + Reloj -->
-        <div class="flex items-center gap-2">
+        <div id="header-tools" class="flex items-center gap-2">
             <button onclick="toggleSoundAlerts()" id="btn-sound-toggle" class="px-2.5 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-bold text-[11px] flex items-center gap-1.5 transition-all" title="Activar o silenciar aviso de voz cuando piden la cuenta">
                 <i class="fa-solid fa-volume-high" id="sound-toggle-icon"></i>
                 <span id="sound-toggle-text" class="hidden sm:inline">Alertas ON</span>
@@ -591,14 +605,14 @@
         <!-- ================= MODO 3: VISTA CLIENTE (SIMULADOR DE CELULAR) ================= -->
         <section id="role-view-customer" class="hidden flex-1 flex flex-col items-center justify-center p-4 overflow-y-auto">
             
-            <div class="mb-4 flex items-center gap-3 bg-slate-900 p-3 rounded-2xl border border-slate-800">
+            <div id="customer-sim-selector" class="mb-4 flex items-center gap-3 bg-slate-900 p-3 rounded-2xl border border-slate-800">
                 <label class="text-xs text-slate-300 font-medium">Simular Escaneo de la Mesa:</label>
                 <select id="customer-table-select" onchange="renderCustomerView()" class="bg-slate-950 border border-slate-700 text-xs text-white rounded-xl px-3 py-1.5 focus:outline-none">
                 </select>
             </div>
 
             <!-- Marco de Teléfono -->
-            <div class="w-full max-w-sm bg-slate-900 border-8 border-slate-800 rounded-[40px] shadow-2xl overflow-hidden flex flex-col h-[650px] relative">
+            <div id="customer-phone-frame" class="w-full max-w-sm bg-slate-900 border-8 border-slate-800 rounded-[40px] shadow-2xl overflow-hidden flex flex-col h-[650px] relative">
                 
                 <div class="bg-slate-950 px-6 py-3 flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 shrink-0">
                     <span class="font-bold text-white truncate max-w-[200px]"><i class="fa-solid fa-utensils text-orange-500 mr-1"></i> <span id="customer-phone-restaurant-name">GastroPOS Restaurante</span></span>
@@ -940,6 +954,7 @@
         let cloudConfig = { ...INITIAL_CLOUD_CONFIG, ...(JSON.parse(localStorage.getItem('gastro_pro_v3_cloud')) || {}) };
 
         let currentRole = 'waitress';
+        let customerLockedMesaCode = '';
         let isAdminUnlocked = false;
         let currentWaitressSession = '';
         let activeWaitressTableId = null;
@@ -989,19 +1004,23 @@
                 const params = new URLSearchParams(window.location.search);
                 const mesaParam = (params.get('mesa') || '').trim().toUpperCase();
                 if (!mesaParam) return;
-
-                const matchedTable = tables.find(t =>
-                    t.code.toUpperCase() === mesaParam ||
-                    t.name.toUpperCase() === mesaParam ||
-                    `MESA-${mesaParam}` === t.code.toUpperCase()
-                );
-
-                const select = document.getElementById('customer-table-select');
-                if (matchedTable && select) {
-                    select.value = String(matchedTable.id);
-                }
+                customerLockedMesaCode = mesaParam;
+                document.body.classList.add('customer-locked');
                 switchRole('customer');
             } catch (e) {}
+        }
+
+        function getCustomerTable() {
+            if (customerLockedMesaCode) {
+                const m = customerLockedMesaCode;
+                return tables.find(t =>
+                    t.code.toUpperCase() === m ||
+                    t.name.toUpperCase() === m ||
+                    `MESA-${m}` === t.code.toUpperCase()
+                ) || null;
+            }
+            const tableId = parseInt(document.getElementById('customer-table-select').value) || tables[0]?.id;
+            return tables.find(t => t.id === tableId) || tables[0];
         }
 
         // --- INICIALIZACIÓN ---
@@ -1155,6 +1174,7 @@
         function handleIncomingBillAlert(payload) {
             if (!payload || !payload.id || payload.id === lastPlayedAlertId) return;
             lastPlayedAlertId = payload.id;
+            if (customerLockedMesaCode) return;
 
             showToast(`🔔 Cuenta pedida en ${payload.tableName} • Atiende: ${payload.waiterName}`, 'info');
             renderPayingTablesBanner();
@@ -1225,6 +1245,7 @@
 
         // --- CAMBIO DE MODO Y CONTRASEÑA ADMIN ---
         function switchRole(role) {
+            if (customerLockedMesaCode && role !== 'customer') return;
             if (role === 'admin' && !isAdminUnlocked) {
                 openAdminAuthModal();
                 return;
@@ -2945,12 +2966,15 @@
         }
 
         function renderCustomerView() {
-            const tableId = parseInt(document.getElementById('customer-table-select').value) || tables[0]?.id;
-            const table = tables.find(t => t.id === tableId) || tables[0];
+            const table = getCustomerTable();
             const container = document.getElementById('customer-mobile-content');
             const footer = document.getElementById('customer-mobile-footer');
 
-            if (!table) return;
+            if (!table) {
+                container.innerHTML = `<div class="py-10 text-center text-slate-400 text-xs">Cargando tu mesa… si tarda, avisa a tu mesera.</div>`;
+                footer.innerHTML = '';
+                return;
+            }
 
             const total = table.items.reduce((s, i) => s + (i.price * i.qty), 0);
 
@@ -3054,8 +3078,7 @@
 
         function requestPaymentFromCustomer() {
             unlockAudioContextOnce();
-            const tableId = parseInt(document.getElementById('customer-table-select').value) || tables[0]?.id;
-            const table = tables.find(t => t.id === tableId);
+            const table = getCustomerTable();
             if (!table) return;
 
             if (table.status === 'free' || table.items.length === 0) {
@@ -3070,26 +3093,101 @@
         }
 
         // --- ESCÁNER DE CÓDIGOS QR (MESA Y PRODUCTOS) ---
-        function openTableQRScannerModal() {
-            openModal('modal-table-qr-scanner');
-            renderTableSimButtons();
-
+        // Pitido corto de confirmación al leer un QR (como lector de supermercado)
+        function playScanBeep() {
             try {
-                if (typeof Html5QrcodeScanner !== 'undefined') {
-                    tableScanner = new Html5QrcodeScanner("table-qr-reader", { fps: 10, qrbox: { width: 170, height: 170 } }, false);
-                    tableScanner.render((text) => {
-                        handleScannedTableCode(text.trim());
-                        closeTableQRScannerModal();
-                    }, () => {});
+                unlockAudioContextOnce();
+                if (audioCtxInstance) {
+                    const t = audioCtxInstance.currentTime;
+                    const osc = audioCtxInstance.createOscillator();
+                    const gain = audioCtxInstance.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(1800, t);
+                    gain.gain.setValueAtTime(0.0001, t);
+                    gain.gain.exponentialRampToValueAtTime(0.25, t + 0.01);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+                    osc.connect(gain);
+                    gain.connect(audioCtxInstance.destination);
+                    osc.start(t);
+                    osc.stop(t + 0.17);
                 }
-            } catch(e) {}
+            } catch (e) {}
+            try { if (navigator.vibrate) navigator.vibrate(80); } catch (e) {}
         }
 
-        function closeTableQRScannerModal() {
-            if (tableScanner) {
-                try { tableScanner.clear(); } catch(e) {}
+        // Inicia la cámara TRASERA directamente, sin selector de cámara ni controles extra
+        async function startRearCameraScanner(elementId, onScan) {
+            const el = document.getElementById(elementId);
+            if (!el) return null;
+            el.innerHTML = '';
+            if (typeof Html5Qrcode === 'undefined') {
+                el.innerHTML = '<p class="text-xs text-slate-400 p-4 text-center">No se cargó el lector de QR. Usa los botones de abajo.</p>';
+                return null;
             }
+            const scanner = new Html5Qrcode(elementId);
+            let handled = false;
+            try {
+                await scanner.start(
+                    { facingMode: { exact: 'environment' } },
+                    {
+                        fps: 10,
+                        aspectRatio: 1.0,
+                        qrbox: (w, h) => {
+                            const size = Math.floor(Math.min(w, h) * 0.75);
+                            return { width: size, height: size };
+                        }
+                    },
+                    (text) => {
+                        if (handled) return;
+                        handled = true;
+                        playScanBeep();
+                        onScan(text.trim());
+                    },
+                    () => {}
+                );
+            } catch (err) {
+                // Si el teléfono no acepta "exact", intenta con la trasera de forma flexible
+                try {
+                    await scanner.start(
+                        { facingMode: 'environment' },
+                        { fps: 10, aspectRatio: 1.0, qrbox: { width: 220, height: 220 } },
+                        (text) => {
+                            if (handled) return;
+                            handled = true;
+                            playScanBeep();
+                        onScan(text.trim());
+                        },
+                        () => {}
+                    );
+                } catch (err2) {
+                    el.innerHTML = '<p class="text-xs text-amber-300 p-4 text-center">No se pudo abrir la cámara. Revisa el permiso de cámara del navegador o usa los botones de abajo.</p>';
+                    return null;
+                }
+            }
+            return scanner;
+        }
+
+        async function stopRearCameraScanner(scanner) {
+            if (!scanner) return;
+            try { await scanner.stop(); } catch (e) {}
+            try { scanner.clear(); } catch (e) {}
+        }
+
+        async function openTableQRScannerModal() {
+            openModal('modal-table-qr-scanner');
+            renderTableSimButtons();
+            await stopRearCameraScanner(tableScanner);
+            tableScanner = await startRearCameraScanner('table-qr-reader', (text) => {
+                handleScannedTableCode(text);
+                closeTableQRScannerModal();
+            });
+        }
+
+        async function closeTableQRScannerModal() {
             closeModal('modal-table-qr-scanner');
+            const sc = tableScanner;
+            tableScanner = null;
+            await stopRearCameraScanner(sc);
         }
 
         function renderTableSimButtons() {
@@ -3130,30 +3228,25 @@
             selectWaitressTable(table.id);
         }
 
-        function openProdQRScannerModal() {
+        async function openProdQRScannerModal() {
             if (!activeWaitressTableId) {
                 showToast('Selecciona una mesa primero para escanear productos', 'warning');
                 return;
             }
             openModal('modal-prod-qr-scanner');
             renderProdSimButtons();
-
-            try {
-                if (typeof Html5QrcodeScanner !== 'undefined') {
-                    prodScanner = new Html5QrcodeScanner("prod-qr-reader", { fps: 10, qrbox: { width: 170, height: 170 } }, false);
-                    prodScanner.render((text) => {
-                        addProductSKUToActiveTable(text.trim());
-                        closeProdQRScannerModal();
-                    }, () => {});
-                }
-            } catch(e) {}
+            await stopRearCameraScanner(prodScanner);
+            prodScanner = await startRearCameraScanner('prod-qr-reader', (text) => {
+                addProductSKUToActiveTable(text);
+                closeProdQRScannerModal();
+            });
         }
 
-        function closeProdQRScannerModal() {
-            if (prodScanner) {
-                try { prodScanner.clear(); } catch(e) {}
-            }
+        async function closeProdQRScannerModal() {
             closeModal('modal-prod-qr-scanner');
+            const sc = prodScanner;
+            prodScanner = null;
+            await stopRearCameraScanner(sc);
         }
 
         function renderProdSimButtons() {
