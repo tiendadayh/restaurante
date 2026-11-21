@@ -959,7 +959,7 @@
         let currentTicketData = null;
         let cloudSyncStatus = { state: 'connecting', msg: 'Conectando…' };
         let lastCloudErrorToastAt = 0;
-        let isAdminUnlocked = false;
+        let isAdminUnlocked = (function(){ try { return sessionStorage.getItem('gastro_admin_unlocked') === '1'; } catch(e) { return false; } })();
         let currentWaitressSession = '';
         let activeWaitressTableId = null;
         let pendingCheckoutTableId = null;
@@ -1057,6 +1057,9 @@
             renderWaitressTablesList();
             renderWaitressOrderPanel();
             renderPayingTablesBanner();
+            try {
+                if (isAdminUnlocked && sessionStorage.getItem('gastro_current_role') === 'admin') switchRole('admin');
+            } catch (e) {}
             renderAdminLiveMonitor();
             renderAdminStaff();
             renderAdminTables();
@@ -1288,6 +1291,7 @@
             }
 
             currentRole = role;
+            try { if (role !== 'customer') sessionStorage.setItem('gastro_current_role', role); } catch (e) {}
             ['waitress', 'admin', 'customer'].forEach(r => {
                 const sec = document.getElementById(`role-view-${r}`);
                 const btn = document.getElementById(`role-btn-${r}`);
@@ -1337,6 +1341,7 @@
 
             if (input.value === ADMIN_PASSCODE) {
                 isAdminUnlocked = true;
+                try { sessionStorage.setItem('gastro_admin_unlocked', '1'); } catch (e) {}
                 closeModal('modal-admin-auth');
                 input.value = '';
                 err.classList.add('hidden');
@@ -1350,6 +1355,7 @@
 
         function lockAdminSession() {
             isAdminUnlocked = false;
+            try { sessionStorage.removeItem('gastro_admin_unlocked'); sessionStorage.removeItem('gastro_current_role'); } catch (e) {}
             switchRole('waitress');
             showToast('Modo Admin bloqueado', 'info');
         }
