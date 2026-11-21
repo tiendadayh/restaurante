@@ -17,7 +17,6 @@
     
     <!-- Librerías QR y PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <!-- Firebase SDK (sincronización en la nube Firestore) -->
@@ -64,8 +63,6 @@
             max-width: 100%; border-width: 0; border-radius: 0; height: calc(100dvh - 64px);
         }
 
-        #table-qr-reader video, #prod-qr-reader video { width: 100% !important; height: auto !important; object-fit: cover; }
-        #table-qr-reader, #prod-qr-reader { border: none !important; }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -75,7 +72,14 @@
         body.customer-locked #customer-phone-frame { height: calc(100dvh - 60px); }
 
         @media (max-width: 767px) {
-            body { padding-bottom: 76px; }
+            /* El blur del header hacía que la barra de roles "fija" se pegara al header y se viera cortada */
+            header.glass-panel {
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+                background: rgba(15, 23, 42, 0.98);
+            }
+            #role-nav { position: fixed !important; bottom: 0; left: 0; right: 0; }
+            body { padding-bottom: 84px; }
             body.customer-locked { padding-bottom: 0; }
             #role-nav { padding-bottom: max(0.375rem, env(safe-area-inset-bottom)); }
             input, select, textarea { font-size: 16px !important; }
@@ -92,8 +96,8 @@
 
         @media print {
             body * { visibility: hidden; }
-            #printable-menu-sheet, #printable-menu-sheet * { visibility: visible; }
-            #printable-menu-sheet {
+            #pdf-export-container, #pdf-export-container * { visibility: visible; }
+            #pdf-export-container {
                 position: absolute;
                 left: 0;
                 top: 0;
@@ -191,12 +195,6 @@
                     <select id="waitress-session-select" onchange="setWaitressSession(this.value)" class="w-full bg-slate-900 border border-slate-700 text-white text-xs font-semibold rounded-xl p-2.5 focus:outline-none focus:border-orange-500">
                     </select>
                 </div>
-
-                <!-- Botón Principal de Escaneo QR de Mesa -->
-                <button onclick="openTableQRScannerModal()" class="w-full py-3.5 px-4 bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white font-extrabold rounded-2xl shadow-lg shadow-orange-600/20 flex items-center justify-center gap-3 text-sm transition-all active:scale-95">
-                    <i class="fa-solid fa-qrcode text-xl"></i>
-                    <span>ESCANEAR QR DE MESA</span>
-                </button>
 
                 <!-- Estado Rápido de Mesas del Salón -->
                 <div class="space-y-2">
@@ -341,15 +339,9 @@
                         <form id="catalog-form" onsubmit="saveCatalogAdmin(event)" class="space-y-3 text-xs">
                             <input type="hidden" id="catalog-id">
 
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-slate-300 font-semibold mb-1">Nombre *</label>
-                                    <input type="text" id="catalog-name" required placeholder="ej. Tacos al Pastor" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-orange-500">
-                                </div>
-                                <div>
-                                    <label class="block text-slate-300 font-semibold mb-1">Código QR *</label>
-                                    <input type="text" id="catalog-sku" required placeholder="ej. PROD-TACOS" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white uppercase font-mono focus:outline-none focus:border-orange-500">
-                                </div>
+                            <div>
+                                <label class="block text-slate-300 font-semibold mb-1">Nombre *</label>
+                                <input type="text" id="catalog-name" required placeholder="ej. Tacos al Pastor" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-orange-500">
                             </div>
 
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -431,7 +423,7 @@
                 </div>
 
                 <!-- SUB-VISTA 5: MENÚ QR PARA IMPRIMIR Y DESCARGAR EN PDF -->
-                <div id="admin-sub-print-menu" class="space-y-6">
+                <div id="admin-sub-print-menu" class="hidden space-y-6">
                     
                     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4 no-print">
                         <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
@@ -489,16 +481,10 @@
                     <!-- HOJA IMPRIMIBLE / EXPORTABLE A PDF -->
                     <div id="pdf-export-container" class="bg-white text-slate-900 rounded-3xl p-8 max-w-4xl mx-auto shadow-2xl space-y-8">
                         
-                        <!-- CARA 1: MENÚ CON CÓDIGOS QR PARA COMANDA -->
-                        <div id="printable-menu-sheet" class="space-y-5">
-                            <div class="text-center border-b-2 border-orange-500 pb-4">
-                                <h2 class="text-2xl font-black text-slate-900 tracking-tight uppercase" id="print-business-name-text">GASTROPOS RESTAURANTE</h2>
-                                <p class="text-xs text-slate-600 font-semibold mt-1">Menú Digital - Escanea el QR para agregar a la orden</p>
-                            </div>
+                        <!-- MENÚ IMPRIMIBLE (sin QR de productos) -->
+                        <div id="printable-menu-sheet" class="space-y-5"></div>
 
-                            <div id="print-catalog-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                            </div>
-                        </div>
+                        <div class="html2pdf__page-break"></div>
 
                         <!-- CONTENEDOR DINÁMICO DE HOJAS DE QR DE MESA -->
                         <div id="print-tables-pages-wrapper" class="space-y-8"></div>
@@ -524,6 +510,38 @@
                         <div class="glass-panel p-4 rounded-2xl">
                             <p class="text-xs text-slate-400 font-medium">Mesera con Mayor Venta</p>
                             <h3 class="text-base font-black text-orange-400 mt-1 truncate" id="report-top-waitress">Ninguna</h3>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
+                        <h4 class="font-extrabold text-white text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-building-columns text-sky-400"></i> Datos para pagos por transferencia
+                        </h4>
+                        <p class="text-xs text-slate-400">Se mostrarán a la mesera cuando el cliente pague por transferencia.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                            <div>
+                                <label class="block text-slate-300 font-semibold mb-1">Banco</label>
+                                <input type="text" id="bank-name-input" oninput="updateBankConfigFromInputs()" placeholder="ej. BBVA" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-sky-500">
+                            </div>
+                            <div>
+                                <label class="block text-slate-300 font-semibold mb-1">Titular de la cuenta</label>
+                                <input type="text" id="bank-holder-input" oninput="updateBankConfigFromInputs()" placeholder="ej. Guadalupe Pérez" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-sky-500">
+                            </div>
+                            <div>
+                                <label class="block text-slate-300 font-semibold mb-1">CLABE o número de cuenta / tarjeta</label>
+                                <input type="text" id="bank-clabe-input" inputmode="numeric" oninput="updateBankConfigFromInputs()" placeholder="18 dígitos" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono focus:outline-none focus:border-sky-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="glass-panel p-4 rounded-2xl">
+                            <p class="text-xs text-slate-400 font-medium"><i class="fa-solid fa-money-bill-wave text-emerald-400 mr-1"></i>Cobrado en Efectivo <span id="report-cash-count" class="text-slate-500"></span></p>
+                            <h3 class="text-xl font-black text-emerald-400 mt-1" id="report-cash-total">$0.00</h3>
+                        </div>
+                        <div class="glass-panel p-4 rounded-2xl">
+                            <p class="text-xs text-slate-400 font-medium"><i class="fa-solid fa-building-columns text-sky-400 mr-1"></i>Cobrado por Transferencia <span id="report-transfer-count" class="text-slate-500"></span></p>
+                            <h3 class="text-xl font-black text-sky-400 mt-1" id="report-transfer-total">$0.00</h3>
                         </div>
                     </div>
 
@@ -771,34 +789,6 @@
         </div>
     </div>
 
-    <!-- MODAL A: ESCANEAR QR DE MESA -->
-    <div id="modal-table-qr-scanner" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5">
-            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                <h3 class="font-extrabold text-white text-base flex items-center gap-2">
-                    <i class="fa-solid fa-qrcode text-amber-400"></i> Escanear QR de Mesa
-                </h3>
-                <button onclick="closeTableQRScannerModal()" class="text-slate-400 hover:text-white text-lg">&times;</button>
-            </div>
-
-            <div class="space-y-4">
-                <div id="table-qr-reader" class="w-full bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden min-h-[180px] flex items-center justify-center"></div>
-
-                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
-                    <p class="text-xs font-bold text-slate-300 flex items-center gap-1">
-                        <i class="fa-solid fa-bolt text-amber-400"></i> Toca para simular el escaneo de la mesa:
-                    </p>
-                    <div class="flex flex-wrap gap-2" id="table-sim-buttons">
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex justify-end">
-                <button onclick="closeTableQRScannerModal()" class="px-4 py-2 bg-slate-800 text-slate-300 font-bold text-xs rounded-xl">Cerrar</button>
-            </div>
-        </div>
-    </div>
-
     <!-- MODAL B: APERTURA RÁPIDA DE COMENSALES -->
     <div id="modal-open-guests" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-5 text-center">
@@ -817,39 +807,6 @@
             </div>
 
             <button onclick="closeModal('modal-open-guests')" class="w-full py-2 bg-slate-800 text-slate-400 text-xs font-bold rounded-xl">Cancelar</button>
-        </div>
-    </div>
-
-    <!-- MODAL C: ESCANEAR PRODUCTO QR -->
-    <div id="modal-prod-qr-scanner" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5">
-            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                <h3 class="font-extrabold text-white text-base flex items-center gap-2">
-                    <i class="fa-solid fa-barcode text-orange-400"></i> Escanear Código de Producto
-                </h3>
-                <button onclick="closeProdQRScannerModal()" class="text-slate-400 hover:text-white text-lg">&times;</button>
-            </div>
-
-            <div class="space-y-4">
-                <div id="prod-qr-reader" class="w-full bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden min-h-[180px] flex items-center justify-center"></div>
-
-                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
-                    <p class="text-xs font-bold text-slate-300 flex items-center gap-1">
-                        <i class="fa-solid fa-bolt text-amber-400"></i> Escaneo rápido de prueba:
-                    </p>
-                    <div class="flex flex-wrap gap-2" id="prod-sim-buttons">
-                    </div>
-
-                    <div class="pt-2 border-t border-slate-800 flex gap-2">
-                        <input type="text" id="manual-sku-input" placeholder="Ingresar código (ej. PROD-COCA)..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white uppercase focus:outline-none">
-                        <button onclick="submitManualSKU()" class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs rounded-xl">Agregar</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex justify-end">
-                <button onclick="closeProdQRScannerModal()" class="px-4 py-2 bg-slate-800 text-slate-300 font-bold text-xs rounded-xl">Cerrar</button>
-            </div>
         </div>
     </div>
 
@@ -872,7 +829,7 @@
         <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5">
             <div class="flex justify-between items-center border-b border-slate-800 pb-3">
                 <h3 class="font-extrabold text-white text-base flex items-center gap-2">
-                    <i class="fa-solid fa-cash-register text-emerald-400"></i> Cobrar en Efectivo y Cerrar Venta
+                    <i class="fa-solid fa-cash-register text-emerald-400"></i> Cobrar y Cerrar Venta
                 </h3>
                 <button onclick="closeModal('modal-checkout-sale')" class="text-slate-400 hover:text-white text-lg">&times;</button>
             </div>
@@ -887,14 +844,23 @@
                         <span>Mesera Responsable:</span>
                         <strong class="text-orange-400" id="checkout-waiter-name">Sofía Martínez</strong>
                     </div>
-                    <div class="flex justify-between text-slate-300">
-                        <span>Forma de Pago:</span>
-                        <strong class="text-emerald-300"><i class="fa-solid fa-money-bill-wave mr-1"></i> Solo Efectivo</strong>
-                    </div>
                     <div class="flex justify-between text-base font-black text-white pt-2 border-t border-slate-800">
                         <span>TOTAL NETO A COBRAR:</span>
                         <strong class="text-emerald-400 text-lg" id="checkout-grand-total">$0.00 MXN</strong>
                     </div>
+                </div>
+
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1.5">Forma de pago</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" id="pay-method-cash" onclick="setCheckoutPaymentMethod('Efectivo')" class="py-3 rounded-xl border font-extrabold text-xs flex items-center justify-center gap-2 transition-all">
+                            <i class="fa-solid fa-money-bill-wave"></i> Efectivo
+                        </button>
+                        <button type="button" id="pay-method-transfer" onclick="setCheckoutPaymentMethod('Transferencia')" class="py-3 rounded-xl border font-extrabold text-xs flex items-center justify-center gap-2 transition-all">
+                            <i class="fa-solid fa-building-columns"></i> Transferencia
+                        </button>
+                    </div>
+                    <div id="checkout-transfer-info" class="hidden mt-2 bg-sky-950/40 border border-sky-500/30 rounded-xl p-3 space-y-1"></div>
                 </div>
 
                 <div>
@@ -906,7 +872,7 @@
 
             <div class="flex gap-3 pt-2">
                 <button onclick="closeModal('modal-checkout-sale')" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl">Cancelar</button>
-                <button onclick="confirmFinalCheckout()" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/20">CONFIRMAR COBRO EN EFECTIVO</button>
+                <button onclick="confirmFinalCheckout()" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/20">CONFIRMAR COBRO</button>
             </div>
         </div>
     </div>
@@ -956,7 +922,10 @@
             hasWifi: true,
             wifiSsid: 'Restaurante_Invitados',
             wifiPass: 'clave2027',
-            soundAlerts: true
+            soundAlerts: true,
+            bankName: '',
+            bankHolder: '',
+            bankClabe: ''
         };
 
         const INITIAL_CLOUD_CONFIG = {
@@ -974,7 +943,7 @@
         }));
         let salesHistory = (JSON.parse(localStorage.getItem('gastro_pro_v3_sales')) || []).map(s => ({
             ...s,
-            method: 'Efectivo'
+            method: s.method || 'Efectivo'
         }));
         let storeConfig = { ...INITIAL_STORE_CONFIG, ...(JSON.parse(localStorage.getItem('gastro_pro_v3_config')) || {}) };
         let cloudConfig = { ...INITIAL_CLOUD_CONFIG, ...(JSON.parse(localStorage.getItem('gastro_pro_v3_cloud')) || {}) };
@@ -992,8 +961,7 @@
         let pendingScanTableId = null;
         let pendingReleaseTableId = null;
         const PAYMENT_METHOD_CASH = 'Efectivo';
-        let tableScanner = null;
-        let prodScanner = null;
+        let selectedPaymentMethod = 'Efectivo';
         let uploadedBase64Photo = '';
         let printAllTablesMode = false;
         let cloudDb = null;
@@ -1386,14 +1354,14 @@
 
             const headerEl = document.getElementById('header-restaurant-name');
             const printInput = document.getElementById('wifi-business-name');
-            const printFrontTitle = document.getElementById('print-business-name-text');
             const customerPhoneTitle = document.getElementById('customer-phone-restaurant-name');
 
             if (headerEl) headerEl.textContent = cleanName;
             if (printInput && printInput.value !== newName) printInput.value = newName;
-            if (printFrontTitle) printFrontTitle.textContent = cleanName.toUpperCase();
             if (customerPhoneTitle) customerPhoneTitle.textContent = cleanName;
             document.title = `${cleanName} - Punto de Venta`;
+
+            if (typeof renderPrintableMenu === 'function') renderPrintableMenu(cleanName.toUpperCase());
 
             document.querySelectorAll('.print-table-brand-label').forEach(el => {
                 el.textContent = cleanName.toUpperCase();
@@ -1408,6 +1376,12 @@
             const passInput = document.getElementById('wifi-pass-input');
 
             if (printInput) printInput.value = nameVal;
+            const bankNameEl = document.getElementById('bank-name-input');
+            const bankHolderEl = document.getElementById('bank-holder-input');
+            const bankClabeEl = document.getElementById('bank-clabe-input');
+            if (bankNameEl && document.activeElement !== bankNameEl) bankNameEl.value = storeConfig.bankName || '';
+            if (bankHolderEl && document.activeElement !== bankHolderEl) bankHolderEl.value = storeConfig.bankHolder || '';
+            if (bankClabeEl && document.activeElement !== bankClabeEl) bankClabeEl.value = storeConfig.bankClabe || '';
             if (enabledSelect) enabledSelect.value = storeConfig.hasWifi ? 'yes' : 'no';
             if (ssidInput) ssidInput.value = storeConfig.wifiSsid || '';
             if (passInput) passInput.value = storeConfig.wifiPass || '';
@@ -1569,7 +1543,7 @@
 
             document.getElementById('ticket-business-name').textContent = (storeConfig.businessName || 'GastroPOS Restaurante').toUpperCase();
             document.getElementById('ticket-sub-info').textContent = `${sale.tableName} • Mesera: ${sale.waiter}`;
-            document.getElementById('ticket-meta-info').textContent = `Folio: ${sale.id} • Cobro: Efectivo • ${sale.time}`;
+            document.getElementById('ticket-meta-info').textContent = `Folio: ${sale.id} • Cobro: ${sale.method || 'Efectivo'} • ${sale.time}`;
             document.getElementById('ticket-total-amount').textContent = `$${sale.total.toFixed(2)} MXN`;
 
             const listEl = document.getElementById('ticket-items-list');
@@ -1586,7 +1560,7 @@
             } else {
                 listEl.innerHTML = `
                     <div class="flex justify-between text-slate-700">
-                        <span>Consumo cerrado (Efectivo)</span>
+                        <span>Consumo cerrado (${sale.method || 'Efectivo'})</span>
                         <span class="font-bold">$${sale.total.toFixed(2)}</span>
                     </div>
                 `;
@@ -1638,7 +1612,10 @@
                 lines.push('--------------------');
             }
             lines.push(`*TOTAL: $${d.total.toFixed(2)} MXN*`);
-            if (d.saleFolio) lines.push('Pago: Efectivo');
+            if (d.saleFolio) {
+                const paidSale = salesHistory.find(x => x.id === d.saleFolio);
+                lines.push(`Pago: ${(paidSale && paidSale.method) || 'Efectivo'}`);
+            }
             lines.push('¡Gracias por su visita! 🙏');
 
             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
@@ -1934,13 +1911,10 @@
                 container.innerHTML = `
                     <div class="h-full flex flex-col items-center justify-center p-8 text-center text-slate-500">
                         <div class="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center text-slate-600 text-3xl mb-3">
-                            <i class="fa-solid fa-qrcode"></i>
+                            <i class="fa-solid fa-chair"></i>
                         </div>
                         <h4 class="font-bold text-slate-300 text-base">No hay mesa seleccionada</h4>
-                        <p class="text-xs text-slate-500 mt-1 max-w-xs">Escanea el código QR de una mesa o selecciona una mesa ocupada de la lista lateral para tomar comanda.</p>
-                        <button onclick="openTableQRScannerModal()" class="mt-4 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-2">
-                            <i class="fa-solid fa-qrcode"></i> ESCANEAR MESA AHORA
-                        </button>
+                        <p class="text-xs text-slate-500 mt-1 max-w-xs">Toca una mesa de la lista para abrirla o para tomar su comanda.</p>
                     </div>
                 `;
                 return;
@@ -1955,7 +1929,7 @@
                 itemsListHtml = `
                     <div class="py-8 text-center text-slate-500">
                         <i class="fa-solid fa-basket-shopping text-3xl mb-2 text-slate-700"></i>
-                        <p class="text-xs font-medium">La comanda está vacía. Escanea un producto o tócalo en el catálogo.</p>
+                        <p class="text-xs font-medium">La comanda está vacía. Toca un producto del catálogo para agregarlo.</p>
                         <p class="text-[11px] text-slate-600 mt-1">Si los clientes se retiraron sin pedir, puedes liberar la mesa abajo.</p>
                     </div>
                 `;
@@ -2017,9 +1991,6 @@
                         <button onclick="promptReleaseTable(${table.id})" class="py-2 px-3 bg-rose-950/60 text-rose-400 hover:bg-rose-900/60 border border-rose-500/30 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all" title="Liberar mesa si se fueron o se abrió por error">
                             <i class="fa-solid fa-door-open text-sm"></i> LIBERAR MESA
                         </button>
-                        <button onclick="openProdQRScannerModal()" class="py-2 px-3 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all">
-                            <i class="fa-solid fa-barcode text-sm"></i> ESCANEAR PRODUCTO
-                        </button>
                     </div>
                 </div>
 
@@ -2068,7 +2039,7 @@
                     <div class="grid ${table.status === 'paying' ? 'grid-cols-2' : 'grid-cols-1'} gap-2">
                         ${billActionButton}
                         <button onclick="openCheckoutSaleModal(${table.id})" class="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md">
-                            <i class="fa-solid fa-money-bill-wave"></i> COBRAR EFECTIVO
+                            <i class="fa-solid fa-money-bill-wave"></i> COBRAR
                         </button>
                     </div>
                 </div>
@@ -2163,6 +2134,66 @@
             broadcastBillAlert(table.name, table.waiter);
         }
 
+        function setCheckoutPaymentMethod(method) {
+            selectedPaymentMethod = method === 'Transferencia' ? 'Transferencia' : 'Efectivo';
+            const on = 'py-3 rounded-xl border font-extrabold text-xs flex items-center justify-center gap-2 transition-all bg-emerald-600 border-emerald-400 text-white shadow-lg shadow-emerald-600/20';
+            const off = 'py-3 rounded-xl border font-extrabold text-xs flex items-center justify-center gap-2 transition-all bg-slate-950 border-slate-700 text-slate-400 hover:text-white';
+            const cashBtn = document.getElementById('pay-method-cash');
+            const transferBtn = document.getElementById('pay-method-transfer');
+            if (cashBtn) cashBtn.className = selectedPaymentMethod === 'Efectivo' ? on : off;
+            if (transferBtn) transferBtn.className = selectedPaymentMethod === 'Transferencia' ? on : off;
+            renderTransferInfo();
+        }
+
+        function escapeHtmlText(str) {
+            return String(str || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function renderTransferInfo() {
+            const box = document.getElementById('checkout-transfer-info');
+            if (!box) return;
+            if (selectedPaymentMethod !== 'Transferencia') {
+                box.classList.add('hidden');
+                box.innerHTML = '';
+                return;
+            }
+            box.classList.remove('hidden');
+            const bank = (storeConfig.bankName || '').trim();
+            const holder = (storeConfig.bankHolder || '').trim();
+            const clabe = (storeConfig.bankClabe || '').trim();
+            if (!bank && !holder && !clabe) {
+                box.innerHTML = '<p class="text-[11px] text-amber-300 font-semibold">Aún no hay datos bancarios. Captúralos en Admin → Caja.</p>';
+                return;
+            }
+            box.innerHTML = `
+                <p class="text-[10px] font-bold text-sky-300 uppercase tracking-wider">Datos para transferir</p>
+                ${bank ? `<p class="text-xs text-slate-200"><span class="text-slate-400">Banco:</span> <strong>${escapeHtmlText(bank)}</strong></p>` : ''}
+                ${holder ? `<p class="text-xs text-slate-200"><span class="text-slate-400">Titular:</span> <strong>${escapeHtmlText(holder)}</strong></p>` : ''}
+                ${clabe ? `<div class="flex items-center justify-between gap-2">
+                    <p class="text-sm font-mono font-black text-white break-all">${escapeHtmlText(clabe)}</p>
+                    <button type="button" onclick="copyBankClabe()" class="shrink-0 px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-[11px] rounded-lg"><i class="fa-regular fa-copy mr-1"></i>Copiar</button>
+                </div>` : ''}
+            `;
+        }
+
+        function copyBankClabe() {
+            const clabe = (storeConfig.bankClabe || '').trim();
+            if (!clabe) return;
+            const done = () => showToast('Cuenta copiada', 'success');
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(clabe).then(done).catch(() => showToast('No se pudo copiar, selecciónala manualmente', 'warning'));
+            } else {
+                showToast('No se pudo copiar, selecciónala manualmente', 'warning');
+            }
+        }
+
+        function updateBankConfigFromInputs() {
+            storeConfig.bankName = document.getElementById('bank-name-input').value.trim();
+            storeConfig.bankHolder = document.getElementById('bank-holder-input').value.trim();
+            storeConfig.bankClabe = document.getElementById('bank-clabe-input').value.trim();
+            saveData();
+        }
+
         function openCheckoutSaleModal(explicitTableId = null) {
             const targetId = explicitTableId || activeWaitressTableId;
             if (!targetId) return;
@@ -2173,6 +2204,7 @@
             }
 
             pendingCheckoutTableId = table.id;
+            setCheckoutPaymentMethod('Efectivo');
             const total = table.items.reduce((s, i) => s + (i.price * i.qty), 0);
             document.getElementById('checkout-table-name').textContent = table.name;
             document.getElementById('checkout-waiter-name').textContent = table.waiter;
@@ -2212,7 +2244,7 @@
                 waiter: table.waiter,
                 time: new Date().toLocaleTimeString('es-MX'),
                 closedAt: new Date().toISOString(),
-                method: PAYMENT_METHOD_CASH,
+                method: selectedPaymentMethod,
                 guests: table.guests || 0,
                 phone: salePhone,
                 items: table.items.map(i => ({ name: i.name, price: i.price, qty: i.qty, notes: i.notes || '' })),
@@ -2240,7 +2272,7 @@
             closeModal('modal-checkout-sale');
             refreshAllTableViews();
             renderAdminReports();
-            showToast(`¡Venta ${folio} por $${total.toFixed(2)} cobrada en efectivo! Mesa liberada.`, 'success');
+            showToast(`¡Venta ${folio} por $${total.toFixed(2)} cobrada por ${selectedPaymentMethod.toLowerCase()}! Mesa liberada.`, 'success');
             if (salePhone) openTicketModalForSale(folio);
         }
 
@@ -2314,7 +2346,7 @@
 
                 const directChargeBtn = table.items.length > 0
                     ? `<button onclick="openCheckoutSaleModal(${table.id})" class="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-[11px] flex items-center justify-center gap-1.5 shadow-md mt-2.5">
-                            <i class="fa-solid fa-money-bill-wave"></i> Cobrar $${total.toFixed(2)} (Efectivo)
+                            <i class="fa-solid fa-money-bill-wave"></i> Cobrar $${total.toFixed(2)}
                        </button>`
                     : '';
 
@@ -2583,11 +2615,19 @@
             }
         }
 
+        // Código interno automático y único (el admin ya no lo captura)
+        function generateProductSku() {
+            let sku;
+            do {
+                sku = 'PROD-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
+            } while (catalog.some(p => p.sku === sku));
+            return sku;
+        }
+
         function saveCatalogAdmin(e) {
             e.preventDefault();
             const id = document.getElementById('catalog-id').value;
             const name = document.getElementById('catalog-name').value.trim();
-            const sku = document.getElementById('catalog-sku').value.trim().toUpperCase();
             const price = parseFloat(document.getElementById('catalog-price').value) || 0;
             const category = document.getElementById('catalog-category').value;
             const available = document.getElementById('catalog-available').value === 'true';
@@ -2599,7 +2639,7 @@
                 const prod = catalog.find(p => p.id == id);
                 if (prod) {
                     prod.name = name;
-                    prod.sku = sku;
+                    if (!prod.sku) prod.sku = generateProductSku();
                     prod.price = price;
                     prod.category = category;
                     prod.available = available;
@@ -2609,7 +2649,7 @@
             } else {
                 catalog.unshift({
                     id: Date.now(),
-                    sku,
+                    sku: generateProductSku(),
                     name,
                     category,
                     price,
@@ -2658,7 +2698,6 @@
 
             document.getElementById('catalog-id').value = prod.id;
             document.getElementById('catalog-name').value = prod.name;
-            document.getElementById('catalog-sku').value = prod.sku;
             document.getElementById('catalog-price').value = prod.price;
             document.getElementById('catalog-category').value = prod.category;
             document.getElementById('catalog-available').value = isItemAvailable(prod) ? 'true' : 'false';
@@ -2712,7 +2751,7 @@
                     </td>
                     <td class="p-3">
                         <div class="font-bold text-white">${prod.name}</div>
-                        <div class="text-[10px] font-mono text-amber-400">${prod.sku} • <span class="capitalize text-slate-400 font-sans">${prod.category}</span></div>
+                        <div class="text-[10px] capitalize text-slate-400">${prod.category}</div>
                     </td>
                     <td class="p-3 font-black text-emerald-400">$${prod.price.toFixed(2)}</td>
                     <td class="p-3 text-center">
@@ -2750,50 +2789,56 @@
             }
         }
 
-        function renderPrintableSheet() {
-            const grid = document.getElementById('print-catalog-grid');
-            const pagesWrapper = document.getElementById('print-tables-pages-wrapper');
-            if (!grid || !pagesWrapper) return;
+        function renderPrintableMenu(restName) {
+            const sheet = document.getElementById('printable-menu-sheet');
+            if (!sheet) return;
 
-            grid.innerHTML = '';
+            const categories = [
+                { key: 'comida', label: 'Comida' },
+                { key: 'refrescos', label: 'Refrescos' },
+                { key: 'cervezas', label: 'Cervezas' },
+                { key: 'postres', label: 'Postres' }
+            ];
+
+            const sections = categories.map(cat => {
+                const items = catalog.filter(p => p.category === cat.key);
+                if (items.length === 0) return '';
+                return `
+                    <div class="space-y-2" style="break-inside: avoid; page-break-inside: avoid;">
+                        <h3 class="text-sm font-black text-orange-600 uppercase tracking-widest border-b border-slate-300 pb-1">${cat.label}</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            ${items.map(prod => `
+                                <div class="flex items-center gap-3 border border-slate-200 rounded-xl p-2 bg-white" style="break-inside: avoid; page-break-inside: avoid;">
+                                    <img src="${prod.image}" crossorigin="anonymous" class="w-16 h-16 rounded-lg object-cover shrink-0" onerror="this.src='https://placehold.co/200x200/eee/333?text=Comida'">
+                                    <div class="min-w-0 flex-1">
+                                        <h4 class="font-extrabold text-slate-900 text-xs leading-tight">${prod.name}</h4>
+                                        <p class="text-sm font-black text-orange-600 mt-1">$${prod.price.toFixed(2)}</p>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            sheet.innerHTML = `
+                <div class="text-center border-b-2 border-orange-500 pb-4">
+                    <h2 class="text-2xl font-black text-slate-900 tracking-tight uppercase">${restName}</h2>
+                    <p class="text-xs text-slate-600 font-semibold mt-1">Nuestro Menú</p>
+                </div>
+                ${sections || '<p class="text-center text-slate-400 text-xs py-6">Aún no hay platillos en el menú</p>'}
+            `;
+        }
+
+        function renderPrintableSheet() {
+            const pagesWrapper = document.getElementById('print-tables-pages-wrapper');
+            if (!pagesWrapper) return;
+
             pagesWrapper.innerHTML = '';
 
             const restName = (storeConfig.businessName || 'GastroPOS Restaurante').toUpperCase();
-            const titleEl = document.getElementById('print-business-name-text');
-            if (titleEl) titleEl.textContent = restName;
 
-            catalog.forEach(prod => {
-                const card = document.createElement('div');
-                card.className = "border border-slate-300 rounded-xl p-2.5 flex flex-col justify-between items-center text-center bg-white";
-                
-                const qrId = `print-qr-prod-${prod.id}`;
-                card.innerHTML = `
-                    <img src="${prod.image}" class="w-full h-20 object-cover rounded-lg mb-1.5" onerror="this.src='https://placehold.co/200x200/eee/333?text=Comida'">
-                    <span class="text-[9px] font-mono font-bold bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200">${prod.sku}</span>
-                    <h4 class="font-extrabold text-slate-900 text-[11px] mt-1 leading-tight">${prod.name}</h4>
-                    <p class="text-xs font-black text-orange-600 my-1">$${prod.price.toFixed(2)} MXN</p>
-                    
-                    <div class="p-1 bg-white border border-slate-200 rounded-lg flex flex-col items-center">
-                        <div id="${qrId}"></div>
-                    </div>
-                `;
-                grid.appendChild(card);
-
-                setTimeout(() => {
-                    const el = document.getElementById(qrId);
-                    if (el && typeof QRCode !== 'undefined') {
-                        el.innerHTML = '';
-                        new QRCode(el, {
-                            text: prod.sku,
-                            width: 50,
-                            height: 50,
-                            colorDark: "#0f172a",
-                            colorLight: "#ffffff",
-                            correctLevel: QRCode.CorrectLevel.H
-                        });
-                    }
-                }, 40);
-            });
+            renderPrintableMenu(restName);
 
             const selectedId = parseInt(document.getElementById('print-selected-table-select')?.value) || tables[0]?.id;
             const tablesToRender = printAllTablesMode
@@ -2805,9 +2850,7 @@
                 const qrPayload = buildTableCustomerUrl(table.code);
                 const sheetBlock = document.createElement('div');
                 sheetBlock.innerHTML = `
-                    <div class="html2pdf__page-break my-6 border-t-2 border-dashed border-slate-300 pt-5 flex items-center justify-center">
-                        <span class="bg-slate-200 text-slate-600 text-xs font-bold px-4 py-1.5 rounded-full">--- HOJA QR: ${table.name.toUpperCase()} ---</span>
-                    </div>
+                    ${idx > 0 ? '<div class="html2pdf__page-break my-6"></div>' : ''}
                     <div class="border-4 border-slate-900 rounded-3xl p-8 bg-gradient-to-b from-amber-50/50 to-orange-50/30 text-center space-y-6 relative overflow-hidden">
                         <div class="max-w-md mx-auto space-y-3">
                             <div class="w-16 h-16 rounded-2xl bg-orange-600 text-white mx-auto flex items-center justify-center text-3xl shadow-xl shadow-orange-600/30">
@@ -2817,8 +2860,7 @@
                             <h2 class="text-3xl font-black text-slate-900 tracking-tight">QR DE MESA Y CONSULTA DE CUENTA</h2>
                             <p class="text-sm font-semibold text-orange-600 uppercase tracking-wider">${table.name.toUpperCase()} (${table.code})</p>
                             <p class="text-slate-600 text-xs leading-relaxed">
-                                <strong>Cliente:</strong> Escanea para ver lo que pediste, el total en vivo y solicitar la cuenta.<br>
-                                <strong>Mesera:</strong> Escanea con el botón de la app para abrir o atender la mesa.
+                                Escanea para ver lo que pediste, el total en vivo, llamar a la mesera y solicitar la cuenta.
                             </p>
                         </div>
 
@@ -2861,6 +2903,13 @@
             document.getElementById('report-daily-total').textContent = `$${totalSales.toFixed(2)}`;
             document.getElementById('report-closed-count').textContent = closedTickets;
             document.getElementById('report-avg-ticket').textContent = `$${avgTicket.toFixed(2)}`;
+
+            const transferSales = salesHistory.filter(s => s.method === 'Transferencia');
+            const cashSales = salesHistory.filter(s => s.method !== 'Transferencia');
+            document.getElementById('report-cash-total').textContent = `$${cashSales.reduce((a, s) => a + s.total, 0).toFixed(2)}`;
+            document.getElementById('report-cash-count').textContent = `(${cashSales.length})`;
+            document.getElementById('report-transfer-total').textContent = `$${transferSales.reduce((a, s) => a + s.total, 0).toFixed(2)}`;
+            document.getElementById('report-transfer-count').textContent = `(${transferSales.length})`;
 
             let topName = 'Ninguna';
             let maxSales = -1;
@@ -2914,7 +2963,7 @@
                     <td class="p-4 font-bold text-white">${s.tableName}</td>
                     <td class="p-4 text-orange-400 font-semibold">${s.waiter}</td>
                     <td class="p-4 text-slate-400">${s.time}</td>
-                    <td class="p-4 text-emerald-300 font-semibold">Efectivo</td>
+                    <td class="p-4 font-semibold ${s.method === 'Transferencia' ? 'text-sky-300' : 'text-emerald-300'}">${s.method || 'Efectivo'}</td>
                     <td class="p-4 text-slate-300 whitespace-nowrap">${s.phone ? `<a href="https://wa.me/${s.phone}" target="_blank" class="text-emerald-300 hover:underline"><i class="fa-brands fa-whatsapp mr-1"></i>${formatPhoneDisplay(s.phone)}</a>` : '<span class="text-slate-600">—</span>'}</td>
                     <td class="p-4 text-center">
                         <button onclick="openTicketModalForSale('${s.id}')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-300 rounded-lg text-[11px] font-bold">
@@ -2935,7 +2984,7 @@
 
             let csv = "data:text/csv;charset=utf-8,Folio,Mesa,Mesera,Hora,Cobro,WhatsApp,Total_MXN\n";
             salesHistory.forEach(s => {
-                csv += `${s.id},${s.tableName},${s.waiter},${s.time},Efectivo,${s.phone || ''},${s.total.toFixed(2)}\n`;
+                csv += `${s.id},${s.tableName},${s.waiter},${s.time},${s.method || 'Efectivo'},${s.phone || ''},${s.total.toFixed(2)}\n`;
             });
 
             const link = document.createElement("a");
@@ -3035,7 +3084,7 @@
                         catalog = data.catalog.map(p => ({ ...p, available: p.available !== false }));
                     }
                     if (Array.isArray(data.salesHistory)) {
-                        salesHistory = data.salesHistory.map(s => ({ ...s, method: 'Efectivo' }));
+                        salesHistory = data.salesHistory.map(s => ({ ...s, method: s.method || 'Efectivo' }));
                     }
                     if (data.storeConfig) {
                         storeConfig = { ...INITIAL_STORE_CONFIG, ...data.storeConfig };
@@ -3133,7 +3182,7 @@
                         catalog = data.catalog.map(p => ({ ...p, available: p.available !== false }));
                     }
                     if (Array.isArray(data.salesHistory)) {
-                        salesHistory = data.salesHistory.map(s => ({ ...s, method: 'Efectivo' }));
+                        salesHistory = data.salesHistory.map(s => ({ ...s, method: s.method || 'Efectivo' }));
                     }
                     if (data.storeConfig) {
                         storeConfig = { ...INITIAL_STORE_CONFIG, ...data.storeConfig };
@@ -3458,186 +3507,6 @@
             saveData();
             refreshAllTableViews();
             broadcastBillAlert(table.name, table.waiter);
-        }
-
-        // --- ESCÁNER DE CÓDIGOS QR (MESA Y PRODUCTOS) ---
-        // Pitido corto de confirmación al leer un QR (como lector de supermercado)
-        function playScanBeep() {
-            try {
-                unlockAudioContextOnce();
-                if (audioCtxInstance) {
-                    const t = audioCtxInstance.currentTime;
-                    const osc = audioCtxInstance.createOscillator();
-                    const gain = audioCtxInstance.createGain();
-                    osc.type = 'square';
-                    osc.frequency.setValueAtTime(1800, t);
-                    gain.gain.setValueAtTime(0.0001, t);
-                    gain.gain.exponentialRampToValueAtTime(0.25, t + 0.01);
-                    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
-                    osc.connect(gain);
-                    gain.connect(audioCtxInstance.destination);
-                    osc.start(t);
-                    osc.stop(t + 0.17);
-                }
-            } catch (e) {}
-            try { if (navigator.vibrate) navigator.vibrate(80); } catch (e) {}
-        }
-
-        // Inicia la cámara TRASERA directamente, sin selector de cámara ni controles extra
-        async function startRearCameraScanner(elementId, onScan) {
-            const el = document.getElementById(elementId);
-            if (!el) return null;
-            el.innerHTML = '';
-            if (typeof Html5Qrcode === 'undefined') {
-                el.innerHTML = '<p class="text-xs text-slate-400 p-4 text-center">No se cargó el lector de QR. Usa los botones de abajo.</p>';
-                return null;
-            }
-            const scanner = new Html5Qrcode(elementId);
-            let handled = false;
-            try {
-                await scanner.start(
-                    { facingMode: { exact: 'environment' } },
-                    {
-                        fps: 10,
-                        aspectRatio: 1.0,
-                        qrbox: (w, h) => {
-                            const size = Math.floor(Math.min(w, h) * 0.75);
-                            return { width: size, height: size };
-                        }
-                    },
-                    (text) => {
-                        if (handled) return;
-                        handled = true;
-                        playScanBeep();
-                        onScan(text.trim());
-                    },
-                    () => {}
-                );
-            } catch (err) {
-                // Si el teléfono no acepta "exact", intenta con la trasera de forma flexible
-                try {
-                    await scanner.start(
-                        { facingMode: 'environment' },
-                        { fps: 10, aspectRatio: 1.0, qrbox: { width: 220, height: 220 } },
-                        (text) => {
-                            if (handled) return;
-                            handled = true;
-                            playScanBeep();
-                        onScan(text.trim());
-                        },
-                        () => {}
-                    );
-                } catch (err2) {
-                    el.innerHTML = '<p class="text-xs text-amber-300 p-4 text-center">No se pudo abrir la cámara. Revisa el permiso de cámara del navegador o usa los botones de abajo.</p>';
-                    return null;
-                }
-            }
-            return scanner;
-        }
-
-        async function stopRearCameraScanner(scanner) {
-            if (!scanner) return;
-            try { await scanner.stop(); } catch (e) {}
-            try { scanner.clear(); } catch (e) {}
-        }
-
-        async function openTableQRScannerModal() {
-            openModal('modal-table-qr-scanner');
-            renderTableSimButtons();
-            await stopRearCameraScanner(tableScanner);
-            tableScanner = await startRearCameraScanner('table-qr-reader', (text) => {
-                handleScannedTableCode(text);
-                closeTableQRScannerModal();
-            });
-        }
-
-        async function closeTableQRScannerModal() {
-            closeModal('modal-table-qr-scanner');
-            const sc = tableScanner;
-            tableScanner = null;
-            await stopRearCameraScanner(sc);
-        }
-
-        function renderTableSimButtons() {
-            const container = document.getElementById('table-sim-buttons');
-            container.innerHTML = '';
-            tables.forEach(t => {
-                const btn = document.createElement('button');
-                btn.className = "px-3 py-1.5 bg-slate-900 hover:bg-orange-600 hover:text-white border border-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all";
-                btn.textContent = `Escanear ${t.code}`;
-                btn.onclick = () => {
-                    handleScannedTableCode(t.code);
-                    closeTableQRScannerModal();
-                };
-                container.appendChild(btn);
-            });
-        }
-
-        function extractMesaCodeFromScannedText(rawText) {
-            const cleaned = (rawText || '').trim();
-            try {
-                if (cleaned.startsWith('http://') || cleaned.startsWith('https://')) {
-                    const url = new URL(cleaned);
-                    const paramMesa = url.searchParams.get('mesa');
-                    if (paramMesa) return paramMesa.trim().toUpperCase();
-                }
-            } catch (e) {}
-            return cleaned.toUpperCase();
-        }
-
-        function handleScannedTableCode(code) {
-            const extracted = extractMesaCodeFromScannedText(code);
-            const table = tables.find(t => t.code.toUpperCase() === extracted || t.name.toUpperCase() === extracted);
-            if (!table) {
-                showToast(`Código de mesa "${code}" no existe`, 'error');
-                return;
-            }
-
-            selectWaitressTable(table.id);
-        }
-
-        async function openProdQRScannerModal() {
-            if (!activeWaitressTableId) {
-                showToast('Selecciona una mesa primero para escanear productos', 'warning');
-                return;
-            }
-            openModal('modal-prod-qr-scanner');
-            renderProdSimButtons();
-            await stopRearCameraScanner(prodScanner);
-            prodScanner = await startRearCameraScanner('prod-qr-reader', (text) => {
-                addProductSKUToActiveTable(text);
-                closeProdQRScannerModal();
-            });
-        }
-
-        async function closeProdQRScannerModal() {
-            closeModal('modal-prod-qr-scanner');
-            const sc = prodScanner;
-            prodScanner = null;
-            await stopRearCameraScanner(sc);
-        }
-
-        function renderProdSimButtons() {
-            const container = document.getElementById('prod-sim-buttons');
-            container.innerHTML = '';
-            catalog.forEach(prod => {
-                const available = isItemAvailable(prod);
-                const btn = document.createElement('button');
-                btn.className = `px-2.5 py-1 bg-slate-900 ${available ? 'hover:bg-orange-600 hover:text-white text-slate-300' : 'opacity-50 text-rose-300 line-through'} border border-slate-700 rounded-lg text-[11px] font-semibold transition-all`;
-                btn.textContent = available ? prod.name : `${prod.name} (Agotado)`;
-                btn.onclick = () => {
-                    addProductSKUToActiveTable(prod.sku);
-                };
-                container.appendChild(btn);
-            });
-        }
-
-        function submitManualSKU() {
-            const sku = document.getElementById('manual-sku-input').value.trim().toUpperCase();
-            if (sku) {
-                addProductSKUToActiveTable(sku);
-                document.getElementById('manual-sku-input').value = '';
-            }
         }
 
         // --- MODALES Y NOTIFICACIONES ---
