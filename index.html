@@ -2,7 +2,8 @@
 <html lang="es" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#090d16">
     <title>GastroPOS Restaurante - Punto de Venta</title>
     
     <!-- Tailwind CSS -->
@@ -66,6 +67,29 @@
         #table-qr-reader video, #prod-qr-reader video { width: 100% !important; height: auto !important; object-fit: cover; }
         #table-qr-reader, #prod-qr-reader { border: none !important; }
 
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        [id^="modal-"] > div { max-height: 92dvh; overflow-y: auto; }
+        body.customer-locked #toast-container { bottom: 1rem !important; }
+        body.customer-locked #customer-phone-bar { display: none !important; }
+        body.customer-locked #customer-phone-frame { height: calc(100dvh - 60px); }
+
+        @media (max-width: 767px) {
+            body { padding-bottom: 76px; }
+            body.customer-locked { padding-bottom: 0; }
+            #role-nav { padding-bottom: max(0.375rem, env(safe-area-inset-bottom)); }
+            input, select, textarea { font-size: 16px !important; }
+            .text-\[9px\] { font-size: 11px !important; }
+            .text-\[10px\] { font-size: 12px !important; }
+            .text-\[11px\] { font-size: 13px !important; }
+            .text-xs { font-size: 13.5px !important; }
+            body.customer-locked #customer-mobile-content .text-xs { font-size: 15px !important; }
+            body.customer-locked #customer-mobile-content .text-\[10px\] { font-size: 13px !important; }
+            body.customer-locked #customer-mobile-content .text-\[11px\] { font-size: 14px !important; }
+            body.customer-locked #customer-mobile-content .text-lg { font-size: 1.6rem !important; line-height: 2rem; }
+            body.customer-locked #customer-mobile-footer button { padding-top: 1rem; padding-bottom: 1rem; font-size: 15px !important; }
+        }
+
         @media print {
             body * { visibility: hidden; }
             #printable-menu-sheet, #printable-menu-sheet * { visibility: visible; }
@@ -86,41 +110,40 @@
 <body class="min-h-screen flex flex-col selection:bg-orange-500 selection:text-white">
 
     <!-- Notificaciones Toast -->
-    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+    <div id="toast-container" class="fixed bottom-24 md:bottom-4 left-4 right-4 md:left-auto z-50 flex flex-col gap-2 md:max-w-sm pointer-events-none"></div>
 
     <!-- ================= BARRA SUPERIOR (NAVEGACIÓN DE ROLES) ================= -->
-    <header class="sticky top-0 z-40 glass-panel border-b border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+    <header class="sticky top-0 z-40 glass-panel border-b border-slate-800 px-3 md:px-4 py-2 md:py-3 flex items-center justify-between gap-3">
         
         <!-- Logo y Nombre del Restaurante -->
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-orange-500/20">
+        <div class="flex items-center gap-3 min-w-0">
+            <div class="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-orange-500/20">
                 <i class="fa-solid fa-utensils"></i>
             </div>
-            <div>
-                <h1 id="header-restaurant-name" class="font-extrabold text-base md:text-lg tracking-tight text-white">
+            <div class="min-w-0">
+                <h1 id="header-restaurant-name" class="font-extrabold text-base md:text-lg tracking-tight text-white truncate">
                     GastroPOS Restaurante
                 </h1>
                 <p class="text-[11px] text-slate-400">
-                    Punto de Venta y Pedidos por QR
+                    <span class="hidden sm:inline">Punto de Venta y Pedidos por QR</span>
                     <span id="cloud-status-pill" class="ml-1.5 px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 text-[9px] font-bold">Local</span>
                 </p>
             </div>
         </div>
 
         <!-- Selector de Modo Operativo -->
-        <nav id="role-nav" class="flex items-center bg-slate-900/90 p-1 rounded-2xl border border-slate-800 shadow-inner">
-            <button onclick="switchRole('waitress')" id="role-btn-waitress" class="px-3 md:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 bg-orange-600 text-white shadow-md">
-                <i class="fa-solid fa-user-tie"></i>
-                <span>Modo Mesera</span>
+        <nav id="role-nav" class="flex items-stretch gap-1 bg-slate-900/95 backdrop-blur p-1.5 border-t border-slate-800 fixed bottom-0 inset-x-0 z-40 md:static md:inset-auto md:p-1 md:rounded-2xl md:border md:bg-slate-900/90 md:shadow-inner">
+            <button onclick="switchRole('waitress')" id="role-btn-waitress" class="flex-1 md:flex-none flex flex-col md:flex-row items-center justify-center gap-0.5 md:gap-2 px-2 md:px-4 py-2 rounded-xl text-[11px] md:text-xs font-bold transition-all bg-orange-600 text-white shadow-md">
+                <i class="fa-solid fa-user-tie text-base md:text-xs"></i>
+                <span>Mesera</span>
             </button>
-            <button onclick="switchRole('admin')" id="role-btn-admin" class="px-3 md:px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-all flex items-center gap-2">
-                <i class="fa-solid fa-lock"></i>
-                <span>Modo Admin / Caja</span>
+            <button onclick="switchRole('admin')" id="role-btn-admin" class="flex-1 md:flex-none flex flex-col md:flex-row items-center justify-center gap-0.5 md:gap-2 px-2 md:px-4 py-2 rounded-xl text-[11px] md:text-xs font-bold transition-all text-slate-400 hover:text-white">
+                <i class="fa-solid fa-lock text-base md:text-xs"></i>
+                <span>Admin / Caja</span>
             </button>
-            <button onclick="switchRole('customer')" id="role-btn-customer" class="px-3 md:px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-all flex items-center gap-2">
-                <i class="fa-solid fa-mobile-screen"></i>
-                <span class="hidden sm:inline">Vista Cliente (QR)</span>
-                <span class="sm:hidden">Cliente</span>
+            <button onclick="switchRole('customer')" id="role-btn-customer" class="flex-1 md:flex-none flex flex-col md:flex-row items-center justify-center gap-0.5 md:gap-2 px-2 md:px-4 py-2 rounded-xl text-[11px] md:text-xs font-bold transition-all text-slate-400 hover:text-white">
+                <i class="fa-solid fa-mobile-screen text-base md:text-xs"></i>
+                <span>Vista Cliente</span>
             </button>
         </nav>
 
@@ -143,7 +166,7 @@
     <div id="paying-tables-alert-banner" class="hidden bg-purple-950/90 border-b border-purple-500/40 px-4 py-2 text-xs flex flex-wrap items-center justify-between gap-2">
         <div class="flex items-center gap-2 text-purple-200 font-bold">
             <i class="fa-solid fa-bell text-amber-400 animate-bounce"></i>
-            <span>Cuentas solicitadas por clientes:</span>
+            <span>Avisos de clientes:</span>
             <div id="paying-tables-chips" class="flex flex-wrap gap-1.5"></div>
         </div>
         <button onclick="testBillVoiceAlert()" class="px-2.5 py-1 bg-purple-800/70 hover:bg-purple-700 text-purple-100 rounded-lg text-[11px] font-semibold">
@@ -182,7 +205,7 @@
                         <span id="waitress-active-tables-badge" class="bg-slate-800 px-2 py-0.5 rounded-full text-slate-300">0 activas</span>
                     </div>
 
-                    <div id="waitress-tables-list" class="space-y-2">
+                    <div id="waitress-tables-list" class="grid grid-cols-2 lg:grid-cols-1 gap-2">
                     </div>
                 </div>
             </div>
@@ -197,10 +220,10 @@
         <section id="role-view-admin" class="hidden flex-1 flex flex-col overflow-hidden">
             
             <!-- Sub-navegación de Administrador -->
-            <div class="bg-slate-900/90 border-b border-slate-800 px-4 py-2.5 flex items-center justify-between gap-2 overflow-x-auto shrink-0">
+            <div class="bg-slate-900/90 border-b border-slate-800 px-3 md:px-4 py-2.5 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar shrink-0">
                 <div class="flex items-center gap-2">
                     <button onclick="setAdminSubtab('live-monitor')" id="admin-nav-live-monitor" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-orange-600 text-white shadow-md whitespace-nowrap">
-                        <i class="fa-solid fa-tv mr-1.5"></i> Monitor en Vivo
+                        <i class="fa-solid fa-tv mr-1.5"></i> Monitor
                     </button>
                     <button onclick="setAdminSubtab('manage-tables')" id="admin-nav-manage-tables" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white whitespace-nowrap">
                         <i class="fa-solid fa-chair mr-1.5"></i> Mesas
@@ -212,18 +235,18 @@
                         <i class="fa-solid fa-burger mr-1.5"></i> Menú
                     </button>
                     <button onclick="setAdminSubtab('print-menu')" id="admin-nav-print-menu" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white whitespace-nowrap">
-                        <i class="fa-solid fa-file-pdf mr-1.5"></i> Menú QR PDF
+                        <i class="fa-solid fa-file-pdf mr-1.5"></i> QR / PDF
                     </button>
                     <button onclick="setAdminSubtab('reports')" id="admin-nav-reports" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white whitespace-nowrap">
-                        <i class="fa-solid fa-chart-line mr-1.5"></i> Corte de Caja
+                        <i class="fa-solid fa-chart-line mr-1.5"></i> Caja
                     </button>
                     <button onclick="setAdminSubtab('cloud-sync')" id="admin-nav-cloud-sync" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white whitespace-nowrap">
-                        <i class="fa-solid fa-cloud mr-1.5"></i> Nube (Firebase)
+                        <i class="fa-solid fa-cloud mr-1.5"></i> Nube
                     </button>
                 </div>
 
-                <button onclick="lockAdminSession()" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-rose-950/70 text-rose-400 border border-slate-700 whitespace-nowrap flex items-center gap-1.5" title="Bloquear panel de administrador">
-                    <i class="fa-solid fa-lock"></i> Bloquear Admin
+                <button onclick="lockAdminSession()" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-rose-950/70 text-rose-400 border border-slate-700 whitespace-nowrap shrink-0 flex items-center gap-1.5" title="Bloquear panel de administrador">
+                    <i class="fa-solid fa-lock"></i><span class="hidden sm:inline">Bloquear Admin</span>
                 </button>
             </div>
 
@@ -318,7 +341,7 @@
                         <form id="catalog-form" onsubmit="saveCatalogAdmin(event)" class="space-y-3 text-xs">
                             <input type="hidden" id="catalog-id">
 
-                            <div class="grid grid-cols-2 gap-3">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label class="block text-slate-300 font-semibold mb-1">Nombre *</label>
                                     <input type="text" id="catalog-name" required placeholder="ej. Tacos al Pastor" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-orange-500">
@@ -329,7 +352,7 @@
                                 </div>
                             </div>
 
-                            <div class="grid grid-cols-3 gap-3">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <div>
                                     <label class="block text-slate-300 font-semibold mb-1">Precio ($ MXN) *</label>
                                     <input type="number" step="0.01" id="catalog-price" required placeholder="95.00" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-orange-500">
@@ -549,6 +572,7 @@
                                         <th class="p-4">Mesera</th>
                                         <th class="p-4">Hora</th>
                                         <th class="p-4">Cobro</th>
+                                        <th class="p-4">WhatsApp</th>
                                         <th class="p-4 text-center">Ticket</th>
                                         <th class="p-4 text-right">Total Cobrado</th>
                                     </tr>
@@ -566,35 +590,23 @@
                     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4 max-w-2xl">
                         <div class="border-b border-slate-800 pb-3">
                             <h4 class="font-extrabold text-white text-sm flex items-center gap-2">
-                                <i class="fa-solid fa-cloud text-cyan-400"></i> Sincronización en la Nube (Firebase Firestore)
+                                <i class="fa-solid fa-cloud text-cyan-400"></i> Conexión en la nube
                             </h4>
-                            <p class="text-xs text-slate-400 mt-1">Conecta tu proyecto de Firebase para que cuando un cliente escanee su QR desde su celular vea lo que pidió y el total en tiempo real, y al pedir la cuenta avise a la mesera y al admin.</p>
+                            <p class="text-xs text-slate-400 mt-1">Cuando está conectada, el cliente ve su cuenta en vivo desde su celular, y la mesera y la caja reciben el aviso cuando piden la cuenta.</p>
                         </div>
 
-                        <div class="space-y-3 text-xs">
-                            <div class="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
-                                <span class="font-semibold text-slate-300">Activar sincronización en la nube:</span>
-                                <input type="checkbox" id="cloud-enabled-checkbox" class="w-4 h-4 accent-cyan-500">
+                        <div class="space-y-3 text-sm">
+                            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
+                                <div>
+                                    <p class="font-bold text-slate-200">Estado de la conexión</p>
+                                    <p class="text-xs text-slate-400 mt-0.5">Tu restaurante ya viene conectado. No necesitas configurar nada aquí.</p>
+                                </div>
+                                <span id="cloud-status-badge" class="shrink-0 px-3 py-1 rounded-full text-xs font-extrabold bg-slate-800 text-slate-400">Revisando…</span>
                             </div>
-
-                            <div>
-                                <label class="block text-slate-300 font-semibold mb-1">ID del Restaurante / Sala en la Nube:</label>
-                                <input type="text" id="cloud-room-id" placeholder="ej. fonda-guille-salon" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-cyan-500">
-                            </div>
-
-                            <div>
-                                <label class="block text-slate-300 font-semibold mb-1">Configuración JSON de Firebase (apiKey, projectId, etc.):</label>
-                                <textarea id="cloud-firebase-json" rows="6" placeholder='{"apiKey":"...","projectId":"..."}' class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono text-[11px] focus:outline-none focus:border-cyan-500"></textarea>
-                            </div>
-
-                            <div class="flex flex-wrap gap-2 pt-2">
-                                <button onclick="saveCloudConfigAndConnect()" class="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl shadow-md">
-                                    Guardar y Conectar Nube
-                                </button>
-                                <button onclick="pushLocalStateToCloud()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 font-bold rounded-xl">
-                                    Subir Datos Locales a la Nube
-                                </button>
-                            </div>
+                            <button onclick="forcePushToCloud()" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 font-bold rounded-xl text-sm">
+                                <i class="fa-solid fa-cloud-arrow-up mr-1.5"></i> Enviar los datos de este dispositivo a la nube
+                            </button>
+                            <p class="text-xs text-slate-500 leading-relaxed">Úsalo solo si la nube está vacía o con datos incorrectos. Reemplaza lo que hay en la nube por lo de este dispositivo.</p>
                         </div>
                     </div>
                 </div>
@@ -614,7 +626,7 @@
             <!-- Marco de Teléfono -->
             <div id="customer-phone-frame" class="w-full max-w-sm bg-slate-900 border-8 border-slate-800 rounded-[40px] shadow-2xl overflow-hidden flex flex-col h-[650px] relative">
                 
-                <div class="bg-slate-950 px-6 py-3 flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 shrink-0">
+                <div id="customer-phone-bar" class="bg-slate-950 px-6 py-3 flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 shrink-0">
                     <span class="font-bold text-white truncate max-w-[200px]"><i class="fa-solid fa-utensils text-orange-500 mr-1"></i> <span id="customer-phone-restaurant-name">GastroPOS Restaurante</span></span>
                     <span id="customer-phone-clock">14:30</span>
                 </div>
@@ -626,7 +638,7 @@
                 <!-- Barra de Acción -->
                 <div class="p-4 bg-slate-900 border-t border-slate-800 shrink-0" id="customer-mobile-footer">
                     <button onclick="requestPaymentFromCustomer()" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
-                        <i class="fa-solid fa-bell text-sm"></i> SOLICITAR LA CUENTA A LA MESERA
+                        <i class="fa-solid fa-bell text-sm"></i> PEDIR LA CUENTA
                     </button>
                 </div>
             </div>
@@ -722,6 +734,14 @@
                 </div>
 
                 <p class="text-center text-[10px] text-slate-500 pt-1">¡Gracias por su visita!</p>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="block text-xs text-slate-300 font-semibold"><i class="fa-brands fa-whatsapp text-emerald-400 mr-1"></i>WhatsApp del cliente</label>
+                <div class="flex gap-2">
+                    <input type="tel" id="ticket-phone-input" inputmode="tel" placeholder="10 dígitos, ej. 744 123 4567" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white text-xs focus:outline-none focus:border-emerald-500">
+                    <button onclick="sendTicketWhatsApp()" class="shrink-0 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl flex items-center gap-1.5"><i class="fa-brands fa-whatsapp text-base"></i> Enviar</button>
+                </div>
             </div>
 
             <div class="flex gap-2">
@@ -876,6 +896,12 @@
                         <strong class="text-emerald-400 text-lg" id="checkout-grand-total">$0.00 MXN</strong>
                     </div>
                 </div>
+
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1.5"><i class="fa-brands fa-whatsapp text-emerald-400 mr-1"></i>WhatsApp del cliente para su ticket (opcional)</label>
+                    <input type="tel" id="checkout-phone-input" inputmode="tel" placeholder="Ej. 744 123 4567" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500">
+                    <p id="checkout-phone-hint" class="text-[11px] text-slate-500 mt-1"></p>
+                </div>
             </div>
 
             <div class="flex gap-3 pt-2">
@@ -955,6 +981,8 @@
 
         let currentRole = 'waitress';
         let customerLockedMesaCode = '';
+        let customerPhoneDraft = '';
+        let currentTicketData = null;
         let cloudSyncStatus = { state: 'connecting', msg: 'Conectando…' };
         let lastCloudErrorToastAt = 0;
         let isAdminUnlocked = false;
@@ -974,6 +1002,23 @@
         let audioCtxInstance = null;
         let alertChannel = null;
         let lastPlayedAlertId = '';
+
+        // --- WHATSAPP: normalizar y mostrar números ---
+        function normalizePhone(raw) {
+            const d = String(raw || '').replace(/\D/g, '');
+            if (d.length === 10) return '52' + d;
+            if (d.length === 13 && d.startsWith('521')) return '52' + d.slice(3);
+            if (d.length >= 11 && d.length <= 15) return d;
+            return null;
+        }
+
+        function formatPhoneDisplay(p) {
+            if (!p) return '';
+            if (p.length === 12 && p.startsWith('52')) {
+                return `+52 ${p.slice(2, 5)} ${p.slice(5, 8)} ${p.slice(8)}`;
+            }
+            return '+' + p;
+        }
 
         // --- TRADUCCIÓN DE ESTADOS A ESPAÑOL ---
         function getTableStatusLabel(status) {
@@ -1090,19 +1135,27 @@
             if (!banner || !chips) return;
 
             const payingTables = tables.filter(t => t.status === 'paying');
-            if (payingTables.length === 0) {
+            const callingTables = tables.filter(t => t.calling);
+            if (payingTables.length === 0 && callingTables.length === 0) {
                 banner.classList.add('hidden');
                 chips.innerHTML = '';
                 return;
             }
 
             banner.classList.remove('hidden');
-            chips.innerHTML = payingTables.map(t => `
+            const billChips = payingTables.map(t => `
                 <button onclick="switchRole('waitress'); selectWaitressTable(${t.id})" class="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-[11px] flex items-center gap-1.5 shadow">
-                    <span>${t.name}</span>
+                    <span>🧾 ${t.name}</span>
                     <span class="text-[10px] text-purple-100">(${t.waiter})</span>
                 </button>
             `).join('');
+            const callChips = callingTables.map(t => `
+                <button onclick="switchRole('waitress'); selectWaitressTable(${t.id})" class="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-[11px] flex items-center gap-1.5 shadow">
+                    <span>🙋 ${t.name} llama</span>
+                    <span class="text-[10px] text-slate-800">(${t.waiter})</span>
+                </button>
+            `).join('');
+            chips.innerHTML = callChips + billChips;
         }
 
         function startLiveClock() {
@@ -1152,11 +1205,12 @@
             });
         }
 
-        function broadcastBillAlert(tableName, waiterName) {
+        function broadcastBillAlert(tableName, waiterName, kind = 'bill') {
             const payload = {
                 id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
                 tableName,
                 waiterName,
+                kind,
                 at: Date.now()
             };
 
@@ -1178,7 +1232,9 @@
             lastPlayedAlertId = payload.id;
             if (customerLockedMesaCode) return;
 
-            showToast(`🔔 Cuenta pedida en ${payload.tableName} • Atiende: ${payload.waiterName}`, 'info');
+            showToast(payload.kind === 'call'
+                ? `🙋 ${payload.tableName} llama a la mesera • Atiende: ${payload.waiterName}`
+                : `🔔 Cuenta pedida en ${payload.tableName} • Atiende: ${payload.waiterName}`, 'info');
             renderPayingTablesBanner();
 
             if (!storeConfig.soundAlerts) return;
@@ -1206,7 +1262,9 @@
             try {
                 if ('speechSynthesis' in window) {
                     window.speechSynthesis.cancel();
-                    const msg = new SpeechSynthesisUtterance(`Aviso para mesera y caja: cuenta pedida en ${payload.tableName}. Atiende ${payload.waiterName}.`);
+                    const msg = new SpeechSynthesisUtterance((payload.kind === 'call'
+                        ? `Aviso para mesera: ${payload.tableName} llama a la mesera. Atiende ${payload.waiterName}.`
+                        : `Aviso para mesera y caja: cuenta pedida en ${payload.tableName}. Atiende ${payload.waiterName}.`));
                     msg.lang = 'es-MX';
                     msg.rate = 1.05;
                     window.speechSynthesis.speak(msg);
@@ -1495,6 +1553,13 @@
                 `).join('');
             }
 
+            currentTicketData = {
+                tableId: table.id, saleFolio: null, businessName: storeConfig.businessName || 'GastroPOS Restaurante',
+                tableName: table.name, waiter: table.waiter, folio: 'CUENTA',
+                when: new Date().toLocaleString('es-MX'), items: table.items.map(i => ({ name: i.name, price: i.price, qty: i.qty })),
+                total: total
+            };
+            document.getElementById('ticket-phone-input').value = table.customerPhone ? formatPhoneDisplay(table.customerPhone) : '';
             openModal('modal-ticket-receipt');
         }
 
@@ -1508,14 +1573,75 @@
             document.getElementById('ticket-total-amount').textContent = `$${sale.total.toFixed(2)} MXN`;
 
             const listEl = document.getElementById('ticket-items-list');
-            listEl.innerHTML = `
-                <div class="flex justify-between text-slate-700">
-                    <span>Consumo cerrado (Efectivo)</span>
-                    <span class="font-bold">$${sale.total.toFixed(2)}</span>
-                </div>
-            `;
+            if (sale.items && sale.items.length) {
+                listEl.innerHTML = sale.items.map(item => `
+                    <div class="flex justify-between items-start gap-2">
+                        <div>
+                            <p class="font-bold text-slate-800">${item.qty} x ${item.name}</p>
+                            ${item.notes ? `<p class="text-[10px] text-orange-700 italic">Nota: ${item.notes}</p>` : ''}
+                        </div>
+                        <span class="font-bold text-slate-900">$${(item.price * item.qty).toFixed(2)}</span>
+                    </div>
+                `).join('');
+            } else {
+                listEl.innerHTML = `
+                    <div class="flex justify-between text-slate-700">
+                        <span>Consumo cerrado (Efectivo)</span>
+                        <span class="font-bold">$${sale.total.toFixed(2)}</span>
+                    </div>
+                `;
+            }
+
+            currentTicketData = {
+                tableId: null, saleFolio: sale.id, businessName: storeConfig.businessName || 'GastroPOS Restaurante',
+                tableName: sale.tableName, waiter: sale.waiter, folio: sale.id,
+                when: sale.closedAt ? new Date(sale.closedAt).toLocaleString('es-MX') : sale.time,
+                items: sale.items || [], total: sale.total
+            };
+            document.getElementById('ticket-phone-input').value = sale.phone ? formatPhoneDisplay(sale.phone) : '';
 
             openModal('modal-ticket-receipt');
+        }
+
+        function sendTicketWhatsApp() {
+            if (!currentTicketData) return;
+            const phone = normalizePhone(document.getElementById('ticket-phone-input').value);
+            if (!phone) {
+                showToast('Escribe un número de WhatsApp válido (10 dígitos)', 'warning');
+                return;
+            }
+            const d = currentTicketData;
+
+            if (d.saleFolio) {
+                const sale = salesHistory.find(x => x.id === d.saleFolio);
+                if (sale && sale.phone !== phone) {
+                    sale.phone = phone;
+                    saveData();
+                    renderAdminReports();
+                }
+            } else if (d.tableId) {
+                const t = tables.find(x => x.id === d.tableId);
+                if (t && t.customerPhone !== phone) {
+                    t.customerPhone = phone;
+                    saveData();
+                    refreshAllTableViews();
+                }
+            }
+
+            const lines = [];
+            lines.push(`🧾 *${String(d.businessName).toUpperCase()}*`);
+            lines.push(`${d.tableName} • ${d.when}`);
+            if (d.saleFolio) lines.push(`Folio: ${d.folio}`);
+            lines.push('--------------------');
+            if (d.items && d.items.length) {
+                d.items.forEach(i => lines.push(`${i.qty} x ${i.name}  $${(i.price * i.qty).toFixed(2)}`));
+                lines.push('--------------------');
+            }
+            lines.push(`*TOTAL: $${d.total.toFixed(2)} MXN*`);
+            if (d.saleFolio) lines.push('Pago: Efectivo');
+            lines.push('¡Gracias por su visita! 🙏');
+
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
         }
 
         async function downloadTicketPDF() {
@@ -1571,6 +1697,10 @@
             targetTable.waiter = sourceTable.waiter;
             targetTable.items = JSON.parse(JSON.stringify(sourceTable.items));
 
+            targetTable.calling = !!sourceTable.calling;
+            sourceTable.calling = false;
+            targetTable.customerPhone = sourceTable.customerPhone || '';
+            sourceTable.customerPhone = '';
             sourceTable.status = 'free';
             sourceTable.guests = 0;
             sourceTable.items = [];
@@ -1598,9 +1728,13 @@
         }
 
         // --- SOLUCIÓN DE ERRORES EN MESAS (CANCELAR CUENTA PEDIDA Y LIBERAR MESA) ---
-        async function setTableStatusRemote(tableId, status) {
+        function setTableStatusRemote(tableId, status) {
+            return updateTableRemote(tableId, { status });
+        }
+
+        async function updateTableRemote(tableId, patch) {
             const t = tables.find(x => x.id === tableId);
-            if (t) t.status = status;
+            if (t) Object.assign(t, patch);
             saveData(true);
             refreshAllTableViews();
             if (!cloudDb) {
@@ -1613,7 +1747,7 @@
                     const snap = await tx.get(ref);
                     if (!snap.exists) throw new Error('sin-datos');
                     const data = snap.data();
-                    const arr = (data.tables || []).map(x => x.id === tableId ? { ...x, status } : x);
+                    const arr = (data.tables || []).map(x => x.id === tableId ? { ...x, ...patch } : x);
                     tx.update(ref, { tables: arr, updatedAt: new Date().toISOString() });
                 });
             } catch (e) {
@@ -1664,6 +1798,8 @@
                 table.status = 'free';
                 table.items = [];
                 table.guests = 0;
+                table.calling = false;
+                table.customerPhone = '';
 
                 if (activeWaitressTableId === table.id) {
                     activeWaitressTableId = null;
@@ -1720,12 +1856,15 @@
                     statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">Cuenta pedida</span>';
                 }
 
+                if (table.calling) {
+                    statusBadge += ' <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-slate-950">🙋 Llama</span>';
+                }
                 const item = document.createElement('div');
-                item.className = `p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isSelected ? 'bg-orange-600/20 border-orange-500' : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'}`;
+                item.className = `p-3 rounded-xl border transition-all cursor-pointer flex flex-col lg:flex-row lg:items-center lg:justify-between gap-1 ${isSelected ? 'bg-orange-600/20 border-orange-500' : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'}`;
                 
                 item.innerHTML = `
                     <div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex flex-wrap items-center gap-1.5">
                             <h4 class="font-bold text-white text-sm">${table.name}</h4>
                             ${statusBadge}
                         </div>
@@ -1733,7 +1872,7 @@
                             ${table.status !== 'free' ? `${table.guests} pers. | Mesera: ${table.waiter}` : 'Mesa lista para abrir'}
                         </p>
                     </div>
-                    <div class="text-right">
+                    <div class="text-left lg:text-right">
                         <span class="text-sm font-black ${table.status !== 'free' ? 'text-emerald-400' : 'text-slate-600'}">$${subtotal.toFixed(2)}</span>
                     </div>
                 `;
@@ -1741,6 +1880,14 @@
                 item.onclick = () => selectWaitressTable(table.id);
                 container.appendChild(item);
             });
+        }
+
+        function scrollToOrderPanelOnMobile() {
+            if (window.innerWidth >= 1024) return;
+            setTimeout(() => {
+                const el = document.getElementById('waitress-order-panel');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 60);
         }
 
         function selectWaitressTable(tableId) {
@@ -1759,6 +1906,7 @@
                 activeWaitressTableId = table.id;
                 renderWaitressTablesList();
                 renderWaitressOrderPanel();
+                scrollToOrderPanelOnMobile();
             }
         }
 
@@ -1775,6 +1923,7 @@
                 closeModal('modal-open-guests');
                 refreshAllTableViews();
                 showToast(`¡${table.name} abierta para ${guestCount} personas por ${table.waiter}!`, 'success');
+                scrollToOrderPanelOnMobile();
             }
         }
 
@@ -1813,7 +1962,7 @@
             } else {
                 table.items.forEach(item => {
                     itemsListHtml += `
-                        <div class="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                        <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
                             <div class="flex items-center gap-2.5">
                                 <img src="${item.image}" class="w-10 h-10 rounded-lg object-cover" onerror="this.src='https://placehold.co/100x100/1e293b/fff?text=P'">
                                 <div>
@@ -1825,12 +1974,12 @@
 
                             <div class="flex items-center gap-2">
                                 <div class="flex items-center bg-slate-900 border border-slate-700 rounded-lg">
-                                    <button onclick="changeWaitressItemQty('${item.sku}', -1)" class="w-6 h-6 text-xs text-white font-bold">-</button>
-                                    <span class="px-2 text-xs font-bold text-amber-400">${item.qty}</span>
-                                    <button onclick="changeWaitressItemQty('${item.sku}', 1)" class="w-6 h-6 text-xs text-white font-bold">+</button>
+                                    <button onclick="changeWaitressItemQty('${item.sku}', -1)" class="w-9 h-9 text-base text-white font-bold">-</button>
+                                    <span class="px-2 text-sm font-bold text-amber-400">${item.qty}</span>
+                                    <button onclick="changeWaitressItemQty('${item.sku}', 1)" class="w-9 h-9 text-base text-white font-bold">+</button>
                                 </div>
                                 <span class="text-xs font-black text-emerald-400 w-14 text-right">$${(item.price * item.qty).toFixed(2)}</span>
-                                <button onclick="openItemNoteModal('${item.sku}')" class="text-orange-400 hover:text-orange-300 text-xs p-1" title="Nota">
+                                <button onclick="openItemNoteModal('${item.sku}')" class="text-orange-400 hover:text-orange-300 text-sm p-2" title="Nota">
                                     <i class="fa-solid fa-pen"></i>
                                 </button>
                             </div>
@@ -1851,22 +2000,24 @@
                         <div class="flex items-center gap-2">
                             <h3 class="font-extrabold text-white text-base">${table.name}</h3>
                             <span class="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-xs font-medium">${table.guests} personas</span>
+                            <span class="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-xs font-black">$${subtotal.toFixed(2)}</span>
                             ${table.status === 'paying' ? '<span class="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-bold">Cuenta pedida</span>' : ''}
                         </div>
                         <p class="text-xs text-orange-400 font-semibold">Mesera: ${table.waiter}</p>
+                        ${table.customerPhone ? `<p class="text-xs text-emerald-300 font-semibold"><i class="fa-brands fa-whatsapp mr-1"></i>Ticket a: ${formatPhoneDisplay(table.customerPhone)}</p>` : ''}
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-2">
-                        <button onclick="openMoveReassignModal(${table.id})" class="py-2 px-3 bg-sky-950/70 text-sky-300 hover:bg-sky-900/70 border border-sky-500/30 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all" title="Cambiar de mesa o reasignar mesera">
+                    <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto">
+                        <button onclick="openMoveReassignModal(${table.id})" class="py-2 px-3 bg-sky-950/70 text-sky-300 hover:bg-sky-900/70 border border-sky-500/30 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all" title="Cambiar de mesa o reasignar mesera">
                             <i class="fa-solid fa-right-left text-xs"></i> MOVER / MESERA
                         </button>
-                        <button onclick="openTicketModalForTable(${table.id})" class="py-2 px-3 bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all" title="Ver o descargar ticket en PDF">
+                        <button onclick="openTicketModalForTable(${table.id})" class="py-2 px-3 bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all" title="Ver o descargar ticket en PDF">
                             <i class="fa-solid fa-file-invoice text-xs"></i> TICKET
                         </button>
-                        <button onclick="promptReleaseTable(${table.id})" class="py-2 px-3 bg-rose-950/60 text-rose-400 hover:bg-rose-900/60 border border-rose-500/30 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all" title="Liberar mesa si se fueron o se abrió por error">
+                        <button onclick="promptReleaseTable(${table.id})" class="py-2 px-3 bg-rose-950/60 text-rose-400 hover:bg-rose-900/60 border border-rose-500/30 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all" title="Liberar mesa si se fueron o se abrió por error">
                             <i class="fa-solid fa-door-open text-sm"></i> LIBERAR MESA
                         </button>
-                        <button onclick="openProdQRScannerModal()" class="py-2 px-3 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all">
+                        <button onclick="openProdQRScannerModal()" class="py-2 px-3 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all">
                             <i class="fa-solid fa-barcode text-sm"></i> ESCANEAR PRODUCTO
                         </button>
                     </div>
@@ -1874,6 +2025,13 @@
 
                 <div class="flex-1 overflow-y-auto p-4 space-y-4">
                     
+                    ${table.calling ? `
+                        <div class="flex items-center justify-between gap-3 bg-amber-500/15 border border-amber-500/40 rounded-xl p-3">
+                            <p class="text-xs font-bold text-amber-200"><i class="fa-solid fa-bell-concierge mr-1.5"></i>El cliente llamó a la mesera</p>
+                            <button onclick="clearTableCall(${table.id})" class="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-lg text-xs whitespace-nowrap">YA LO ATENDÍ</button>
+                        </div>
+                    ` : ''}
+
                     <div class="space-y-2">
                         <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Platillos en Comanda</p>
                         ${itemsListHtml}
@@ -2019,6 +2177,12 @@
             document.getElementById('checkout-table-name').textContent = table.name;
             document.getElementById('checkout-waiter-name').textContent = table.waiter;
             document.getElementById('checkout-grand-total').textContent = `$${total.toFixed(2)} MXN`;
+            const phoneInput = document.getElementById('checkout-phone-input');
+            const phoneHint = document.getElementById('checkout-phone-hint');
+            phoneInput.value = table.customerPhone ? formatPhoneDisplay(table.customerPhone) : '';
+            phoneHint.textContent = table.customerPhone
+                ? 'El cliente lo capturó desde su QR. Puedes corregirlo.'
+                : 'Si lo escribes, al cobrar podrás enviarle el ticket por WhatsApp.';
 
             openModal('modal-checkout-sale');
         }
@@ -2032,12 +2196,26 @@
             const total = table.items.reduce((s, i) => s + (i.price * i.qty), 0);
             const folio = 'V-' + Math.floor(100000 + Math.random() * 900000);
 
+            const phoneRaw = (document.getElementById('checkout-phone-input')?.value || '').trim();
+            let salePhone = '';
+            if (phoneRaw) {
+                salePhone = normalizePhone(phoneRaw) || '';
+                if (!salePhone) {
+                    showToast('El número de WhatsApp no es válido. Revísalo o déjalo vacío.', 'warning');
+                    return;
+                }
+            }
+
             salesHistory.unshift({
                 id: folio,
                 tableName: table.name,
                 waiter: table.waiter,
                 time: new Date().toLocaleTimeString('es-MX'),
+                closedAt: new Date().toISOString(),
                 method: PAYMENT_METHOD_CASH,
+                guests: table.guests || 0,
+                phone: salePhone,
+                items: table.items.map(i => ({ name: i.name, price: i.price, qty: i.qty, notes: i.notes || '' })),
                 total: total
             });
 
@@ -2050,6 +2228,8 @@
             table.status = 'free';
             table.items = [];
             table.guests = 0;
+            table.calling = false;
+            table.customerPhone = '';
 
             if (activeWaitressTableId === table.id) {
                 activeWaitressTableId = null;
@@ -2061,6 +2241,7 @@
             refreshAllTableViews();
             renderAdminReports();
             showToast(`¡Venta ${folio} por $${total.toFixed(2)} cobrada en efectivo! Mesa liberada.`, 'success');
+            if (salePhone) openTicketModalForSale(folio);
         }
 
         // --- MODO 2: ADMIN SUB-PESTAÑAS ---
@@ -2111,6 +2292,9 @@
                     statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">Cuenta pedida</span>';
                 }
 
+                if (table.calling) {
+                    statusBadge += ' <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-slate-950">🙋 Llama</span>';
+                }
                 const itemsDetailHtml = table.items.length > 0
                     ? `
                         <div class="mt-2.5 pt-2 border-t border-slate-800/80 space-y-1.5 max-h-28 overflow-y-auto pr-1">
@@ -2718,7 +2902,7 @@
             histTbody.innerHTML = '';
 
             if (salesHistory.length === 0) {
-                histTbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-500">No hay ventas registradas en el turno</td></tr>`;
+                histTbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-500">No hay ventas registradas en el turno</td></tr>`;
                 return;
             }
 
@@ -2731,6 +2915,7 @@
                     <td class="p-4 text-orange-400 font-semibold">${s.waiter}</td>
                     <td class="p-4 text-slate-400">${s.time}</td>
                     <td class="p-4 text-emerald-300 font-semibold">Efectivo</td>
+                    <td class="p-4 text-slate-300 whitespace-nowrap">${s.phone ? `<a href="https://wa.me/${s.phone}" target="_blank" class="text-emerald-300 hover:underline"><i class="fa-brands fa-whatsapp mr-1"></i>${formatPhoneDisplay(s.phone)}</a>` : '<span class="text-slate-600">—</span>'}</td>
                     <td class="p-4 text-center">
                         <button onclick="openTicketModalForSale('${s.id}')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-300 rounded-lg text-[11px] font-bold">
                             <i class="fa-solid fa-file-invoice"></i> Ticket
@@ -2748,9 +2933,9 @@
                 return;
             }
 
-            let csv = "data:text/csv;charset=utf-8,Folio,Mesa,Mesera,Hora,Cobro,Total_MXN\n";
+            let csv = "data:text/csv;charset=utf-8,Folio,Mesa,Mesera,Hora,Cobro,WhatsApp,Total_MXN\n";
             salesHistory.forEach(s => {
-                csv += `${s.id},${s.tableName},${s.waiter},${s.time},Efectivo,${s.total.toFixed(2)}\n`;
+                csv += `${s.id},${s.tableName},${s.waiter},${s.time},Efectivo,${s.phone || ''},${s.total.toFixed(2)}\n`;
             });
 
             const link = document.createElement("a");
@@ -2783,6 +2968,13 @@
         }
 
         function updateCloudPill(text, active) {
+            const badge = document.getElementById('cloud-status-badge');
+            if (badge) {
+                badge.textContent = active ? '🟢 Conectado' : '🔴 Sin conexión';
+                badge.className = active
+                    ? 'shrink-0 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    : 'shrink-0 px-3 py-1 rounded-full text-xs font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/30';
+            }
             const pill = document.getElementById('cloud-status-pill');
             if (!pill) return;
             pill.textContent = text;
@@ -2854,6 +3046,9 @@
                         const prev = previousTables.find(pt => pt.id === t.id);
                         if (t.status === 'paying' && (!prev || prev.status !== 'paying')) {
                             broadcastBillAlert(t.name, t.waiter);
+                        }
+                        if (t.calling && (!prev || !prev.calling)) {
+                            broadcastBillAlert(t.name, t.waiter, 'call');
                         }
                     });
 
@@ -2951,6 +3146,9 @@
                         if (t.status === 'paying' && (!prev || prev.status !== 'paying')) {
                             broadcastBillAlert(t.name, t.waiter);
                         }
+                        if (t.calling && (!prev || !prev.calling)) {
+                            broadcastBillAlert(t.name, t.waiter, 'call');
+                        }
                     });
 
                     saveData(true);
@@ -2970,6 +3168,22 @@
                 });
             } catch (e) {
                 updateCloudPill('Local', false);
+            }
+        }
+
+        async function forcePushToCloud() {
+            if (!cloudDb) {
+                showToast('Todavía no hay conexión con la nube', 'warning');
+                return;
+            }
+            if (!confirm('Esto reemplaza los datos de la nube con los de este dispositivo. ¿Continuar?')) return;
+            try {
+                await cloudDb.collection('gastropos_rooms').doc(FIRESTORE_ROOM_DOC).set({
+                    tables, staff, catalog, salesHistory, storeConfig, updatedAt: new Date().toISOString()
+                }, { merge: true });
+                showToast('Datos enviados a la nube', 'success');
+            } catch (e) {
+                showToast('No se pudo enviar (' + ((e && e.code) ? e.code : 'error') + ')', 'error');
             }
         }
 
@@ -3069,56 +3283,159 @@
                 `;
             }).join('');
 
+            const menuOpen = document.getElementById('customer-menu-details')?.open ? 'open' : '';
+            const phoneEl = document.getElementById('customer-phone-input');
+            const phoneHadFocus = !!phoneEl && document.activeElement === phoneEl;
             container.innerHTML = `
                 <div class="text-center py-1 space-y-1">
                     <span class="px-3 py-1 bg-orange-500/20 text-orange-400 rounded-full text-xs font-bold border border-orange-500/30">${table.name}</span>
-                    <h3 class="text-lg font-black text-white">Tu Consumo en Vivo</h3>
+                    <h3 class="text-lg font-black text-white">Tu cuenta en vivo</h3>
                     <p class="text-[10px] text-orange-400 font-semibold">${table.status === 'free' ? 'Mesa disponible' : `Te atiende: ${table.waiter}`}</p>
                     <p class="text-[10px] font-bold ${cloudSyncStatus.state === 'ok' ? 'text-emerald-400' : (cloudSyncStatus.state === 'error' ? 'text-rose-400' : 'text-amber-300')}">${cloudSyncStatus.state === 'ok' ? '🟢 En vivo' : (cloudSyncStatus.state === 'error' ? '🔴 ' : '🟡 ') + cloudSyncStatus.msg}</p>
                 </div>
 
                 <div class="space-y-2">
-                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Desglose de Orden</p>
+                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Lo que has pedido</p>
                     ${itemsHtml}
                 </div>
 
                 <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2 text-xs">
                     <div class="flex justify-between text-base font-black text-white">
-                        <span>TOTAL EXACTO:</span>
+                        <span>TOTAL A PAGAR:</span>
                         <span class="text-emerald-400 text-lg">$${total.toFixed(2)} MXN</span>
                     </div>
                 </div>
 
-                <div class="space-y-2 pt-1">
-                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Disponibilidad del Menú Hoy</p>
-                    <div class="space-y-1.5">
+                <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
+                    <p class="text-xs font-bold text-white"><i class="fa-brands fa-whatsapp text-emerald-400 text-base mr-1.5"></i>¿Quieres tu ticket por WhatsApp?</p>
+                    ${table.customerPhone ? `
+                        <p class="text-xs text-emerald-300 font-semibold">Te lo enviaremos al ${formatPhoneDisplay(table.customerPhone)}</p>
+                        <button onclick="clearCustomerPhone()" style="min-height:0;padding:0.4rem 0.8rem;font-size:12px" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl">Cambiar número</button>
+                    ` : `
+                        <div class="flex gap-2">
+                            <input id="customer-phone-input" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" value="${customerPhoneDraft.replace(/[^0-9+() -]/g, '')}" oninput="customerPhoneDraft = this.value" placeholder="Tu número (10 dígitos)" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-emerald-500">
+                            <button onclick="saveCustomerPhone()" class="shrink-0 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-xs">Guardar</button>
+                        </div>
+                        <p class="text-[10px] text-slate-500">Es opcional. Solo se usa para enviarte tu ticket.</p>
+                    `}
+                </div>
+
+                <details id="customer-menu-details" class="pt-1" ${menuOpen}>
+                    <summary class="cursor-pointer text-[11px] font-bold text-slate-400 uppercase tracking-wider py-2">Menú de hoy (toca para ver)</summary>
+                    <div class="space-y-1.5 pt-1">
                         ${menuStatusHtml}
                     </div>
-                </div>
+                </details>
             `;
+
+            if (phoneHadFocus) {
+                const pe = document.getElementById('customer-phone-input');
+                if (pe) {
+                    pe.focus();
+                    try { pe.setSelectionRange(pe.value.length, pe.value.length); } catch (e) {}
+                }
+            }
 
             if (table.status === 'paying') {
                 footer.innerHTML = `
                     <div class="space-y-2">
-                        <p class="text-[11px] text-center text-purple-300 font-semibold">🔔 Ya solicitaste la cuenta a ${table.waiter}</p>
+                        <p class="text-[11px] text-center text-purple-300 font-semibold">🔔 Ya avisamos a ${table.waiter}: viene con tu cuenta</p>
                         <button onclick="cancelBillRequest(${table.id})" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 font-bold rounded-2xl text-xs flex items-center justify-center gap-2 transition-all">
-                            <i class="fa-solid fa-rotate-left"></i> CANCELAR SOLICITUD DE CUENTA
+                            <i class="fa-solid fa-rotate-left"></i> YA NO QUIERO LA CUENTA
                         </button>
                     </div>
                 `;
             } else if (table.status === 'free' || table.items.length === 0) {
                 footer.innerHTML = `
                     <button disabled class="w-full py-3 bg-slate-800 text-slate-500 font-extrabold rounded-2xl text-xs flex items-center justify-center gap-2 cursor-not-allowed">
-                        <i class="fa-solid fa-bell-slash text-sm"></i> AÚN NO HAY CONSUMO POR COBRAR
+                        <i class="fa-solid fa-bell-slash text-sm"></i> AÚN NO TIENES PEDIDOS
                     </button>
                 `;
             } else {
                 footer.innerHTML = `
                     <button onclick="requestPaymentFromCustomer()" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
-                        <i class="fa-solid fa-bell text-sm"></i> SOLICITAR LA CUENTA A LA MESERA
+                        <i class="fa-solid fa-bell text-sm"></i> PEDIR LA CUENTA
                     </button>
                 `;
             }
+
+            const callBtnHtml = table.calling
+                ? `<div class="mb-2 flex items-center justify-between gap-2 bg-amber-500/15 border border-amber-500/40 rounded-2xl px-3 py-2">
+                        <p class="text-xs font-bold text-amber-200">🙋 Ya avisamos a ${table.waiter}. Enseguida te atiende.</p>
+                        <button onclick="cancelWaiterCall()" style="min-height:0;padding:0.4rem 0.7rem;font-size:12px" class="shrink-0 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-[11px]">Cancelar</button>
+                   </div>`
+                : `<button onclick="callWaiterFromCustomer()" class="mb-2 w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 transition-all">
+                        <i class="fa-solid fa-bell-concierge text-sm"></i> LLAMAR A LA MESERA
+                   </button>`;
+            footer.insertAdjacentHTML('afterbegin', callBtnHtml);
+        }
+
+        function saveCustomerPhone() {
+            const raw = document.getElementById('customer-phone-input')?.value || '';
+            const phone = normalizePhone(raw);
+            if (!phone) {
+                showToast('Escribe tu número de WhatsApp a 10 dígitos', 'warning');
+                return;
+            }
+            const table = getCustomerTable();
+            if (!table) return;
+            customerPhoneDraft = '';
+            if (customerLockedMesaCode) {
+                updateTableRemote(table.id, { customerPhone: phone });
+                showToast('¡Listo! Te enviaremos tu ticket por WhatsApp', 'success');
+                return;
+            }
+            table.customerPhone = phone;
+            saveData();
+            refreshAllTableViews();
+        }
+
+        function clearCustomerPhone() {
+            const table = getCustomerTable();
+            if (!table) return;
+            if (customerLockedMesaCode) {
+                updateTableRemote(table.id, { customerPhone: '' });
+                return;
+            }
+            table.customerPhone = '';
+            saveData();
+            refreshAllTableViews();
+        }
+
+        function callWaiterFromCustomer() {
+            unlockAudioContextOnce();
+            const table = getCustomerTable();
+            if (!table) return;
+            if (customerLockedMesaCode) {
+                updateTableRemote(table.id, { calling: true });
+                showToast('¡Listo! Ya avisamos a tu mesera', 'success');
+                return;
+            }
+            table.calling = true;
+            saveData();
+            refreshAllTableViews();
+            broadcastBillAlert(table.name, table.waiter, 'call');
+        }
+
+        function cancelWaiterCall() {
+            const table = getCustomerTable();
+            if (!table) return;
+            if (customerLockedMesaCode) {
+                updateTableRemote(table.id, { calling: false });
+                return;
+            }
+            table.calling = false;
+            saveData();
+            refreshAllTableViews();
+        }
+
+        function clearTableCall(tableId) {
+            const table = tables.find(t => t.id === tableId);
+            if (!table) return;
+            table.calling = false;
+            saveData();
+            refreshAllTableViews();
+            showToast(`Llamado de ${table.name} atendido`, 'success');
         }
 
         function requestPaymentFromCustomer() {
