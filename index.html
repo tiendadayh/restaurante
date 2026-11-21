@@ -737,21 +737,49 @@
             </div>
 
             <!-- Hoja del Ticket para PDF -->
-            <div id="ticket-printable-box" class="bg-white text-slate-900 rounded-2xl p-5 space-y-4 text-xs shadow-inner">
-                <div class="text-center border-b border-dashed border-slate-300 pb-3 space-y-1">
-                    <h4 class="font-black text-base uppercase tracking-tight" id="ticket-business-name">GASTROPOS RESTAURANTE</h4>
-                    <p class="text-[11px] text-slate-500" id="ticket-sub-info">Mesa 1 • Mesera: Sofía Martínez</p>
-                    <p class="text-[10px] font-mono text-slate-400" id="ticket-meta-info">Folio: CUENTA • Hora: --:--</p>
+            <div id="ticket-printable-box" class="bg-white text-slate-900 rounded-2xl overflow-hidden shadow-inner text-xs" style="font-family: 'Segoe UI', Roboto, Arial, sans-serif;">
+                <div class="bg-slate-900 text-white text-center px-5 pt-5 pb-4">
+                    <div class="w-11 h-11 mx-auto rounded-full bg-amber-400 text-slate-900 flex items-center justify-center text-lg mb-2"><i class="fa-solid fa-utensils"></i></div>
+                    <h4 class="font-black text-lg uppercase tracking-wide leading-tight" id="ticket-business-name">GASTROPOS RESTAURANTE</h4>
+                    <p class="text-[10px] font-bold tracking-[0.25em] text-amber-300 uppercase mt-1" id="ticket-doc-type">Ticket de consumo</p>
                 </div>
 
-                <div id="ticket-items-list" class="space-y-2 border-b border-dashed border-slate-300 pb-3"></div>
+                <div class="px-5 pt-4 pb-5 space-y-3">
+                    <div id="ticket-info-grid" class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px] pb-3 border-b border-dashed border-slate-300"></div>
 
-                <div class="flex justify-between items-center text-sm font-black text-slate-900">
-                    <span>TOTAL:</span>
-                    <span id="ticket-total-amount" class="text-base text-emerald-700">$0.00 MXN</span>
+                    <table class="w-full text-[11px]" style="border-collapse: collapse;">
+                        <thead>
+                            <tr class="text-[9px] uppercase tracking-wider text-slate-500" style="border-top:2px solid #0f172a;border-bottom:1px solid #cbd5e1;">
+                                <th class="text-left py-1.5 pr-1" style="width:12%">Cant.</th>
+                                <th class="text-left py-1.5">Producto</th>
+                                <th class="text-right py-1.5 pl-1">P. Unit.</th>
+                                <th class="text-right py-1.5 pl-1">Importe</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ticket-items-list"></tbody>
+                    </table>
+
+                    <div class="space-y-1.5 pt-1">
+                        <div class="flex justify-between text-[11px] text-slate-600">
+                            <span>Artículos</span><span id="ticket-items-count" class="font-bold">0</span>
+                        </div>
+                        <div class="flex justify-between text-[11px] text-slate-600">
+                            <span>Subtotal</span><span id="ticket-subtotal-amount" class="font-bold">$0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-900 text-white rounded-xl px-4 py-3">
+                            <span class="text-[11px] font-bold tracking-widest uppercase" id="ticket-total-label">Total a pagar</span>
+                            <span id="ticket-total-amount" class="text-xl font-black text-amber-300">$0.00 MXN</span>
+                        </div>
+                        <p id="ticket-pay-line" class="text-center text-[10px] text-slate-500"></p>
+                    </div>
+
+                    <div class="text-center pt-3 border-t border-dashed border-slate-300 space-y-0.5">
+                        <p class="text-[12px] font-black text-slate-800">¡Gracias por su visita!</p>
+                        <p class="text-[10px] text-slate-500">Esperamos verle pronto</p>
+                        <p id="ticket-wifi-line" class="text-[10px] text-slate-500"></p>
+                        <p id="ticket-disclaimer" class="text-[9px] text-slate-400 pt-1"></p>
+                    </div>
                 </div>
-
-                <p class="text-center text-[10px] text-slate-500 pt-1">¡Gracias por su visita!</p>
             </div>
 
             <div class="space-y-1.5">
@@ -824,6 +852,45 @@
         </div>
     </div>
 
+    <!-- MODAL: CONFIRMAR PEDIDO (CANDADO) -->
+    <div id="modal-confirm-order" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <h3 class="font-bold text-white text-sm flex items-center gap-2"><i class="fa-solid fa-lock text-amber-400"></i> Confirmar pedido de <span id="confirm-order-table"></span></h3>
+            <p class="text-[11px] text-slate-400">Revisa con el cliente. Al confirmar, estos productos quedan <b>bloqueados y guardados</b>; si pide más, se agregan y se confirma otra vez.</p>
+            <div id="confirm-order-list" class="space-y-1.5 text-xs max-h-60 overflow-y-auto"></div>
+            <div class="flex gap-2">
+                <button onclick="closeModal('modal-confirm-order')" class="flex-1 py-2.5 bg-slate-800 text-slate-300 font-bold text-xs rounded-xl">Revisar</button>
+                <button onclick="confirmOrderRound()" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl">Confirmar y guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CORREGIR PEDIDO (SOLO ADMIN) -->
+    <div id="modal-admin-correct" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm hidden items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 my-auto text-xs">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-extrabold text-white text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-screwdriver-wrench text-amber-400"></i> Corregir pedido · <span id="admin-correct-table"></span>
+                </h3>
+                <button onclick="closeModal('modal-admin-correct')" class="text-slate-400 hover:text-white text-lg">&times;</button>
+            </div>
+            <p class="text-[11px] text-slate-400">Solo el administrador puede corregir lo ya confirmado. Cada cambio queda registrado en el historial.</p>
+            <div id="admin-correct-items" class="space-y-2 max-h-[40vh] overflow-y-auto pr-1"></div>
+            <div class="flex gap-2">
+                <select id="admin-correct-add-select" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none"></select>
+                <button onclick="adminAddItem()" class="shrink-0 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl"><i class="fa-solid fa-plus"></i> Agregar</button>
+            </div>
+            <div class="flex justify-between text-sm font-black text-white pt-2 border-t border-slate-800">
+                <span>TOTAL</span><span id="admin-correct-total" class="text-emerald-400">$0.00</span>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Historial de correcciones</p>
+                <div id="admin-correct-log" class="space-y-1 text-[11px] text-slate-300 max-h-24 overflow-y-auto"></div>
+            </div>
+            <button onclick="closeModal('modal-admin-correct')" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl">Listo</button>
+        </div>
+    </div>
+
     <!-- MODAL E: COBRO Y CIERRE DE MESA (SOLO EFECTIVO) -->
     <div id="modal-checkout-sale" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5">
@@ -850,9 +917,7 @@
                     </div>
                 </div>
 
-                <button type="button" id="btn-toggle-split" onclick="toggleCheckoutSplit()" class="w-full py-2.5 bg-sky-950/60 hover:bg-sky-900/60 text-sky-300 border border-sky-500/30 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all">
-                    <i class="fa-solid fa-people-arrows"></i> <span id="btn-toggle-split-text">Dividir cuenta</span>
-                </button>
+                <!-- Dividir cuenta eliminado -->
                 <div id="checkout-split-panel" class="hidden space-y-3"></div>
 
                 <div>
@@ -1485,7 +1550,7 @@
             renderPrintableSheet();
         }
 
-        async function generatePDFFile(element, btn, fileName) {
+        async function generatePDFFile(element, btn, fileName, optOverride = null) {
             if (!element || typeof html2pdf === 'undefined') {
                 showToast('No se pudo cargar el generador de PDF', 'error');
                 return;
@@ -1503,6 +1568,7 @@
                 jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
                 pagebreak: { mode: ['css', 'legacy'] }
             };
+            if (optOverride) Object.assign(opt, optOverride);
 
             try {
                 await html2pdf().set(opt).from(element).save();
@@ -1516,37 +1582,81 @@
         }
 
         // --- TICKET / RECIBO DESCARGABLE EN PDF ---
+        function formatTicketMoney(n) {
+            return '$' + Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // Dibuja el ticket (cuenta o venta cobrada) con precio unitario, subtotal por producto y total
+        function renderTicketSheet(d) {
+            const money = formatTicketMoney;
+            const isSale = d.kind === 'venta';
+            const items = d.items || [];
+            const total = Number(d.total || 0);
+            const count = items.reduce((sum, i) => sum + (i.qty || 0), 0);
+
+            document.getElementById('ticket-business-name').textContent = String(d.businessName).toUpperCase();
+            document.getElementById('ticket-doc-type').textContent = isSale ? 'Ticket de venta' : 'Cuenta · Ticket de consumo';
+
+            const info = [
+                ['Folio', isSale ? d.folio : 'Cuenta abierta'],
+                ['Fecha', d.dateStr || '—'],
+                ['Mesa', d.tableName],
+                ['Hora', d.timeStr || '—'],
+                ['Mesera', d.waiter],
+                ['Personas', d.guests ? d.guests : '—']
+            ];
+            document.getElementById('ticket-info-grid').innerHTML = info.map(([k, v]) => `
+                <div class="flex justify-between gap-2"><span class="text-slate-500">${k}</span><strong class="text-slate-900 text-right">${escapeHtmlText(String(v))}</strong></div>
+            `).join('');
+
+            const body = document.getElementById('ticket-items-list');
+            if (items.length === 0) {
+                body.innerHTML = isSale
+                    ? `<tr><td colspan="3" class="py-2 text-slate-600">Consumo cerrado (${escapeHtmlText(d.method || 'Efectivo')})</td><td class="py-2 text-right font-bold">${money(total)}</td></tr>`
+                    : `<tr><td colspan="4" class="py-3 text-center text-slate-400">Sin productos en la cuenta</td></tr>`;
+            } else {
+                body.innerHTML = items.map(item => `
+                    <tr style="border-bottom:1px dashed #e2e8f0;">
+                        <td class="py-2 pr-1 align-top font-black text-slate-900">${item.qty}</td>
+                        <td class="py-2 align-top">
+                            <span class="font-bold text-slate-800">${escapeHtmlText(item.name)}</span>
+                            ${item.notes ? `<br><span class="text-[10px] text-orange-700 italic">Nota: ${escapeHtmlText(item.notes)}</span>` : ''}
+                        </td>
+                        <td class="py-2 pl-1 align-top text-right text-slate-600 whitespace-nowrap">${money(item.price)}</td>
+                        <td class="py-2 pl-1 align-top text-right font-black text-slate-900 whitespace-nowrap">${money(item.price * item.qty)}</td>
+                    </tr>
+                `).join('');
+            }
+
+            document.getElementById('ticket-items-count').textContent = count;
+            document.getElementById('ticket-subtotal-amount').textContent = money(total);
+            document.getElementById('ticket-total-label').textContent = isSale ? 'Total pagado' : 'Total a pagar';
+            document.getElementById('ticket-total-amount').textContent = `${money(total)} MXN`;
+            document.getElementById('ticket-pay-line').textContent = isSale ? `Forma de pago: ${d.method || 'Efectivo'}` : '';
+            document.getElementById('ticket-wifi-line').textContent = (storeConfig.hasWifi && (storeConfig.wifiSsid || storeConfig.wifiPass))
+                ? `Wi-Fi: ${storeConfig.wifiSsid || 'Disponible'}${storeConfig.wifiPass ? ' · Clave: ' + storeConfig.wifiPass : ''}`
+                : '';
+            document.getElementById('ticket-disclaimer').textContent = isSale
+                ? 'Conserve este ticket como comprobante de su consumo.'
+                : 'Cuenta preliminar: no es comprobante de pago.';
+        }
+
         function openTicketModalForTable(tableId) {
             const table = tables.find(t => t.id === tableId);
             if (!table) return;
 
+            const now = new Date();
             const total = table.items.reduce((s, i) => s + (i.price * i.qty), 0);
-            document.getElementById('ticket-business-name').textContent = (storeConfig.businessName || 'GastroPOS Restaurante').toUpperCase();
-            document.getElementById('ticket-sub-info').textContent = `${table.name} (${table.guests} pers.) • Mesera: ${table.waiter}`;
-            document.getElementById('ticket-meta-info').textContent = `Estado: ${getTableStatusLabel(table.status)} • Hora: ${new Date().toLocaleTimeString('es-MX')}`;
-            document.getElementById('ticket-total-amount').textContent = `$${total.toFixed(2)} MXN`;
-
-            const listEl = document.getElementById('ticket-items-list');
-            if (table.items.length === 0) {
-                listEl.innerHTML = `<p class="text-center text-slate-400 py-2">Sin productos en la cuenta</p>`;
-            } else {
-                listEl.innerHTML = table.items.map(item => `
-                    <div class="flex justify-between items-start gap-2">
-                        <div>
-                            <p class="font-bold text-slate-800">${item.qty} x ${item.name}</p>
-                            ${item.notes ? `<p class="text-[10px] text-orange-700 italic">Nota: ${item.notes}</p>` : ''}
-                        </div>
-                        <span class="font-bold text-slate-900">$${(item.price * item.qty).toFixed(2)}</span>
-                    </div>
-                `).join('');
-            }
-
             currentTicketData = {
-                tableId: table.id, saleFolio: null, businessName: storeConfig.businessName || 'GastroPOS Restaurante',
-                tableName: table.name, waiter: table.waiter, folio: 'CUENTA',
-                when: new Date().toLocaleString('es-MX'), items: table.items.map(i => ({ name: i.name, price: i.price, qty: i.qty })),
+                kind: 'cuenta', tableId: table.id, saleFolio: null, businessName: storeConfig.businessName || 'GastroPOS Restaurante',
+                tableName: table.name, guests: table.guests, waiter: table.waiter, folio: 'CUENTA',
+                dateStr: now.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }),
+                timeStr: now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+                when: now.toLocaleString('es-MX'),
+                items: table.items.map(i => ({ name: i.name, price: i.price, qty: i.qty, notes: i.notes || '' })),
                 total: total
             };
+            renderTicketSheet(currentTicketData);
             document.getElementById('ticket-phone-input').value = table.customerPhone ? formatPhoneDisplay(table.customerPhone) : '';
             openModal('modal-ticket-receipt');
         }
@@ -1555,39 +1665,17 @@
             const sale = salesHistory.find(s => s.id === folio);
             if (!sale) return;
 
-            document.getElementById('ticket-business-name').textContent = (storeConfig.businessName || 'GastroPOS Restaurante').toUpperCase();
-            document.getElementById('ticket-sub-info').textContent = `${sale.tableName} • Mesera: ${sale.waiter}`;
-            document.getElementById('ticket-meta-info').textContent = `Folio: ${sale.id} • Cobro: ${sale.method || 'Efectivo'} • ${sale.time}`;
-            document.getElementById('ticket-total-amount').textContent = `$${sale.total.toFixed(2)} MXN`;
-
-            const listEl = document.getElementById('ticket-items-list');
-            if (sale.items && sale.items.length) {
-                listEl.innerHTML = sale.items.map(item => `
-                    <div class="flex justify-between items-start gap-2">
-                        <div>
-                            <p class="font-bold text-slate-800">${item.qty} x ${item.name}</p>
-                            ${item.notes ? `<p class="text-[10px] text-orange-700 italic">Nota: ${item.notes}</p>` : ''}
-                        </div>
-                        <span class="font-bold text-slate-900">$${(item.price * item.qty).toFixed(2)}</span>
-                    </div>
-                `).join('');
-            } else {
-                listEl.innerHTML = `
-                    <div class="flex justify-between text-slate-700">
-                        <span>Consumo cerrado (${sale.method || 'Efectivo'})</span>
-                        <span class="font-bold">$${sale.total.toFixed(2)}</span>
-                    </div>
-                `;
-            }
-
+            const closed = sale.closedAt ? new Date(sale.closedAt) : null;
             currentTicketData = {
-                tableId: null, saleFolio: sale.id, businessName: storeConfig.businessName || 'GastroPOS Restaurante',
-                tableName: sale.tableName, waiter: sale.waiter, folio: sale.id,
-                when: sale.closedAt ? new Date(sale.closedAt).toLocaleString('es-MX') : sale.time,
+                kind: 'venta', tableId: null, saleFolio: sale.id, businessName: storeConfig.businessName || 'GastroPOS Restaurante',
+                tableName: sale.tableName, guests: sale.guests, waiter: sale.waiter, folio: sale.id, method: sale.method || 'Efectivo',
+                dateStr: closed ? closed.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+                timeStr: closed ? closed.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : (sale.time || '—'),
+                when: closed ? closed.toLocaleString('es-MX') : sale.time,
                 items: sale.items || [], total: sale.total
             };
+            renderTicketSheet(currentTicketData);
             document.getElementById('ticket-phone-input').value = sale.phone ? formatPhoneDisplay(sale.phone) : '';
-
             openModal('modal-ticket-receipt');
         }
 
@@ -1620,12 +1708,17 @@
             lines.push(`🧾 *${String(d.businessName).toUpperCase()}*`);
             lines.push(`${d.tableName} • ${d.when}`);
             if (d.saleFolio) lines.push(`Folio: ${d.folio}`);
-            lines.push('--------------------');
+            lines.push('━━━━━━━━━━━━━━');
             if (d.items && d.items.length) {
-                d.items.forEach(i => lines.push(`${i.qty} x ${i.name}  $${(i.price * i.qty).toFixed(2)}`));
-                lines.push('--------------------');
+                d.items.forEach(i => {
+                    lines.push(`*${i.qty} × ${i.name}*`);
+                    lines.push(`   ${formatTicketMoney(i.price)} c/u  →  ${formatTicketMoney(i.price * i.qty)}`);
+                });
+                lines.push('━━━━━━━━━━━━━━');
+                lines.push(`Artículos: ${d.items.reduce((n, i) => n + (i.qty || 0), 0)}`);
+                lines.push(`Subtotal: ${formatTicketMoney(d.total)}`);
             }
-            lines.push(`*TOTAL: $${d.total.toFixed(2)} MXN*`);
+            lines.push(`*TOTAL: ${formatTicketMoney(d.total)} MXN*`);
             if (d.saleFolio) {
                 const paidSale = salesHistory.find(x => x.id === d.saleFolio);
                 lines.push(`Pago: ${(paidSale && paidSale.method) || 'Efectivo'}`);
@@ -1640,7 +1733,13 @@
             const btn = document.getElementById('btn-download-ticket-pdf');
             const safeName = (storeConfig.businessName || 'Ticket').replace(/[^a-zA-Z0-9_-]/g, '_');
             const fileName = `Ticket_${safeName}_${Date.now()}.pdf`;
-            await generatePDFFile(box, btn, fileName);
+            // Página angosta tipo ticket, de una sola hoja y a la altura del contenido
+            const pageW = 100, margin = 5;
+            const pageH = Math.ceil(box.offsetHeight * ((pageW - margin * 2) / box.offsetWidth)) + margin * 2 + 6;
+            await generatePDFFile(box, btn, fileName, {
+                margin: [margin, margin, margin, margin],
+                jsPDF: { unit: 'mm', format: [pageW, pageH], orientation: 'portrait' }
+            });
         }
 
         // --- CAMBIO DE MESA Y REASIGNAR MESERA ---
@@ -1767,6 +1866,10 @@
         function promptReleaseTable(tableId) {
             const table = tables.find(t => t.id === tableId);
             if (!table) return;
+            if (table.items.some(i => getConfirmedQty(i) > 0) && !canAdminCorrect()) {
+                showToast('Esta mesa tiene pedido confirmado: solo el administrador puede liberarla (Admin / Caja)', 'warning');
+                return;
+            }
 
             pendingReleaseTableId = tableId;
             const itemCount = table.items.reduce((s, i) => s + i.qty, 0);
@@ -1785,6 +1888,11 @@
         function confirmReleaseTable() {
             if (!pendingReleaseTableId) return;
             const table = tables.find(t => t.id === pendingReleaseTableId);
+            if (table && table.items.some(i => getConfirmedQty(i) > 0) && !canAdminCorrect()) {
+                closeModal('modal-release-table');
+                denyNeedsAdmin();
+                return;
+            }
             if (table) {
                 table.status = 'free';
                 table.items = [];
@@ -1920,6 +2028,12 @@
 
         function renderWaitressOrderPanel() {
             const container = document.getElementById('waitress-order-panel');
+            const keepScroll = (id) => { const el = document.getElementById(id); return el ? el.scrollTop : 0; };
+            const sameTable = container.dataset.tableId === String(activeWaitressTableId);
+            const savedScroll = sameTable
+                ? { outer: keepScroll('waitress-outer-scroll'), comanda: keepScroll('waitress-comanda-scroll'), catalog: keepScroll('waitress-catalog-scroll') }
+                : null;
+            const prevItemCount = sameTable ? parseInt(container.dataset.itemCount || '0') : 0;
 
             if (!activeWaitressTableId) {
                 container.innerHTML = `
@@ -1948,32 +2062,7 @@
                     </div>
                 `;
             } else {
-                table.items.forEach(item => {
-                    itemsListHtml += `
-                        <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-                            <div class="flex items-center gap-2.5">
-                                <img src="${item.image}" class="w-10 h-10 rounded-lg object-cover" onerror="this.src='https://placehold.co/100x100/1e293b/fff?text=P'">
-                                <div>
-                                    <h5 class="text-xs font-bold text-white">${item.name}</h5>
-                                    <p class="text-[10px] text-slate-400">$${item.price.toFixed(2)} c/u</p>
-                                    ${item.notes ? `<p class="text-[9px] text-amber-300 italic">"${item.notes}"</p>` : ''}
-                                </div>
-                            </div>
-
-                            <div class="flex items-center gap-2">
-                                <div class="flex items-center bg-slate-900 border border-slate-700 rounded-lg">
-                                    <button onclick="changeWaitressItemQty('${item.sku}', -1)" class="w-9 h-9 text-base text-white font-bold">-</button>
-                                    <span class="px-2 text-sm font-bold text-amber-400">${item.qty}</span>
-                                    <button onclick="changeWaitressItemQty('${item.sku}', 1)" class="w-9 h-9 text-base text-white font-bold">+</button>
-                                </div>
-                                <span class="text-xs font-black text-emerald-400 w-14 text-right">$${(item.price * item.qty).toFixed(2)}</span>
-                                <button onclick="openItemNoteModal('${item.sku}')" class="text-orange-400 hover:text-orange-300 text-sm p-2" title="Nota">
-                                    <i class="fa-solid fa-pen"></i>
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                });
+                table.items.forEach(item => { itemsListHtml += buildWaitressItemRow(item); });
             }
 
             const billActionButton = table.status === 'paying'
@@ -2008,7 +2097,7 @@
                     </div>
                 </div>
 
-                <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                <div id="waitress-outer-scroll" class="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-3">
                     
                     ${table.calling ? `
                         <div class="flex items-center justify-between gap-3 bg-amber-500/15 border border-amber-500/40 rounded-xl p-3">
@@ -2017,12 +2106,12 @@
                         </div>
                     ` : ''}
 
-                    <div class="space-y-2">
-                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Platillos en Comanda</p>
+                    <div id="waitress-comanda-scroll" class="space-y-2 shrink-0 max-h-[40vh] overflow-y-auto pr-1">
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider sticky top-0 bg-slate-900/95 py-1 z-10">Platillos en Comanda</p>
                         ${itemsListHtml}
                     </div>
 
-                    <div class="space-y-2 pt-2 border-t border-slate-800">
+                    <div id="waitress-catalog-scroll" class="space-y-2 pt-2 border-t border-slate-800 flex-1 min-h-[220px] overflow-y-auto pr-1">
                         <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Catálogo Rápido</p>
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             ${catalog.map(prod => {
@@ -2050,6 +2139,14 @@
                         <span class="text-emerald-400 text-lg">$${subtotal.toFixed(2)} MXN</span>
                     </div>
 
+                    ${table.items.length === 0 ? '' : (tablePendingCount(table) > 0
+                        ? `<button onclick="openConfirmOrderModal()" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg animate-pulse">
+                                <i class="fa-solid fa-lock-open"></i> CONFIRMAR PEDIDO (${tablePendingCount(table)} por confirmar)
+                           </button>`
+                        : `<div class="w-full py-2.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-bold rounded-xl text-xs flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-lock"></i> Pedido confirmado y guardado${table.orderRounds > 1 ? ' (' + table.orderRounds + ' rondas)' : ''}
+                           </div>`)}
+
                     <div class="grid ${table.status === 'paying' ? 'grid-cols-2' : 'grid-cols-1'} gap-2">
                         ${billActionButton}
                         <button onclick="openCheckoutSaleModal(${table.id})" class="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md">
@@ -2058,6 +2155,220 @@
                     </div>
                 </div>
             `;
+
+            container.dataset.tableId = String(activeWaitressTableId);
+            container.dataset.itemCount = String(table.items.length);
+            if (savedScroll) {
+                const setTop = (id, v) => { const el = document.getElementById(id); if (el) el.scrollTop = v; };
+                setTop('waitress-outer-scroll', savedScroll.outer);
+                setTop('waitress-catalog-scroll', savedScroll.catalog);
+                // si se agregó un renglón nuevo, mostrar el final de la comanda; si no, quedarse donde estaba
+                const cm = document.getElementById('waitress-comanda-scroll');
+                if (cm) cm.scrollTop = table.items.length > prevItemCount ? cm.scrollHeight : savedScroll.comanda;
+            }
+        }
+
+        // --- CANDADO DE PEDIDO: lo confirmado queda bloqueado; lo nuevo se confirma por rondas ---
+        function getConfirmedQty(item) { return Math.min(item.qty, item.confirmedQty || 0); }
+        function getPendingQty(item) { return item.qty - getConfirmedQty(item); }
+        function tablePendingCount(table) { return table.items.reduce((sum, i) => sum + getPendingQty(i), 0); }
+
+        function buildWaitressItemRow(item) {
+            const confirmed = getConfirmedQty(item);
+            const pending = getPendingQty(item);
+            const badges = `
+                ${confirmed > 0 ? `<span class="inline-block mt-0.5 mr-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"><i class="fa-solid fa-lock"></i> ${confirmed} confirmado${confirmed > 1 ? 's' : ''}</span>` : ''}
+                ${pending > 0 ? `<span class="inline-block mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/40">+${pending} por confirmar</span>` : ''}`;
+            const qtyControls = pending > 0 ? `
+                <div class="flex items-center bg-slate-900 border border-amber-500/40 rounded-lg">
+                    <button onclick="changeWaitressItemQty('${item.sku}', -1)" class="w-9 h-9 text-base text-white font-bold">-</button>
+                    <span class="px-2 text-sm font-bold text-amber-400">${pending}</span>
+                    <button onclick="changeWaitressItemQty('${item.sku}', 1)" class="w-9 h-9 text-base text-white font-bold">+</button>
+                </div>` : `
+                <div class="px-3 h-9 flex items-center bg-slate-900 border border-slate-700 rounded-lg text-sm font-bold text-slate-300">${item.qty}</div>`;
+            const lockBtn = confirmed > 0
+                ? `<button onclick="denyNeedsAdmin()" class="text-emerald-400 hover:text-amber-300 text-sm p-2" title="Confirmado: solo el administrador puede corregirlo"><i class="fa-solid fa-lock"></i></button>`
+                : `<button onclick="openItemNoteModal('${item.sku}')" class="text-orange-400 hover:text-orange-300 text-sm p-2" title="Nota"><i class="fa-solid fa-pen"></i></button>`;
+            return `
+                <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-950 p-2.5 rounded-xl border ${pending > 0 ? 'border-amber-500/40' : 'border-slate-800'}">
+                    <div class="flex items-center gap-2.5">
+                        <img src="${item.image}" class="w-10 h-10 rounded-lg object-cover" onerror="this.src='https://placehold.co/100x100/1e293b/fff?text=P'">
+                        <div>
+                            <h5 class="text-xs font-bold text-white">${item.name}</h5>
+                            <p class="text-[10px] text-slate-400">$${item.price.toFixed(2)} c/u · total ${item.qty}</p>
+                            ${item.notes ? `<p class="text-[9px] text-amber-300 italic">"${item.notes}"</p>` : ''}
+                            <div>${badges}</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        ${qtyControls}
+                        <span class="text-xs font-black text-emerald-400 w-14 text-right">$${(item.price * item.qty).toFixed(2)}</span>
+                        ${lockBtn}
+                    </div>
+                </div>`;
+        }
+
+        function openConfirmOrderModal() {
+            const table = tables.find(t => t.id === activeWaitressTableId);
+            if (!table) return;
+            const pendingItems = table.items.filter(i => getPendingQty(i) > 0);
+            if (pendingItems.length === 0) { showToast('No hay productos nuevos por confirmar', 'info'); return; }
+            document.getElementById('confirm-order-list').innerHTML = pendingItems.map(i => `
+                <div class="flex justify-between gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2">
+                    <span class="text-white font-bold">${getPendingQty(i)} × ${i.name}${i.notes ? ` <em class="text-amber-300 font-normal">(${i.notes})</em>` : ''}</span>
+                    <span class="text-emerald-400 font-black">$${(getPendingQty(i) * i.price).toFixed(2)}</span>
+                </div>`).join('');
+            document.getElementById('confirm-order-table').textContent = table.name;
+            openModal('modal-confirm-order');
+        }
+
+        function confirmOrderRound() {
+            const table = tables.find(t => t.id === activeWaitressTableId);
+            if (!table) return;
+            if (tablePendingCount(table) === 0) { closeModal('modal-confirm-order'); return; }
+            table.items.forEach(i => { i.confirmedQty = i.qty; });
+            table.orderRounds = (table.orderRounds || 0) + 1;
+            table.lastConfirmedAt = new Date().toISOString();
+            saveData();
+            closeModal('modal-confirm-order');
+            refreshAllTableViews();
+            showToast('Pedido confirmado y guardado 🔒', 'success');
+        }
+
+        // --- CORRECCIONES: SOLO EL ADMINISTRADOR (en modo Admin / Caja, con sesión desbloqueada) ---
+        let adminCorrectTableId = null;
+
+        function canAdminCorrect() {
+            return isAdminUnlocked && currentRole === 'admin';
+        }
+
+        function denyNeedsAdmin() {
+            showToast('Solo el administrador puede corregir lo ya confirmado (Admin / Caja → Corregir pedido)', 'warning');
+        }
+
+        function logTableCorrection(table, text) {
+            table.corrections = table.corrections || [];
+            table.corrections.push({ at: new Date().toISOString(), text });
+            if (table.corrections.length > 30) table.corrections = table.corrections.slice(-30);
+        }
+
+        function openAdminCorrectModal(tableId) {
+            if (!canAdminCorrect()) { denyNeedsAdmin(); return; }
+            adminCorrectTableId = tableId;
+            renderAdminCorrectModal();
+            openModal('modal-admin-correct');
+        }
+
+        function renderAdminCorrectModal() {
+            const table = tables.find(t => t.id === adminCorrectTableId);
+            if (!table) return;
+            document.getElementById('admin-correct-table').textContent = table.name;
+
+            const listEl = document.getElementById('admin-correct-items');
+            listEl.innerHTML = table.items.length === 0
+                ? `<p class="text-center text-slate-500 py-4">La cuenta está vacía.</p>`
+                : table.items.map(item => {
+                    const confirmed = getConfirmedQty(item);
+                    const pending = getPendingQty(item);
+                    return `
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5 space-y-2">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="min-w-0">
+                                <p class="font-bold text-white truncate">${escapeHtmlText(item.name)}</p>
+                                <p class="text-[10px] text-slate-400">$${item.price.toFixed(2)} c/u
+                                    ${confirmed > 0 ? `· <span class="text-emerald-300">🔒 ${confirmed} confirmado${confirmed > 1 ? 's' : ''}</span>` : ''}
+                                    ${pending > 0 ? `· <span class="text-amber-300">${pending} por confirmar</span>` : ''}
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <div class="flex items-center bg-slate-900 border border-slate-700 rounded-lg">
+                                    <button onclick="adminChangeQty('${item.sku}', -1)" class="w-9 h-9 text-base text-white font-bold">-</button>
+                                    <span class="px-2 text-sm font-bold text-amber-400">${item.qty}</span>
+                                    <button onclick="adminChangeQty('${item.sku}', 1)" class="w-9 h-9 text-base text-white font-bold">+</button>
+                                </div>
+                                <span class="w-14 text-right font-black text-emerald-400">$${(item.price * item.qty).toFixed(2)}</span>
+                                <button onclick="adminRemoveItem('${item.sku}')" class="text-rose-400 hover:text-rose-300 p-2" title="Quitar producto"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </div>
+                        <input type="text" value="${escapeHtmlText(item.notes || '')}" placeholder="Nota de cocina (opcional)" onchange="adminSaveNote('${item.sku}', this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-[11px] text-white focus:outline-none focus:border-amber-500">
+                    </div>`;
+                }).join('');
+
+            const sel = document.getElementById('admin-correct-add-select');
+            const prev = sel.value;
+            sel.innerHTML = catalog.filter(p => isItemAvailable(p)).map(p => `<option value="${p.sku}">${escapeHtmlText(p.name)} — $${p.price.toFixed(2)}</option>`).join('');
+            if (prev) sel.value = prev;
+
+            document.getElementById('admin-correct-total').textContent = '$' + table.items.reduce((sum, i) => sum + i.price * i.qty, 0).toFixed(2);
+
+            const log = (table.corrections || []).slice(-6).reverse();
+            document.getElementById('admin-correct-log').innerHTML = log.length === 0
+                ? `<p class="text-slate-500">Sin correcciones.</p>`
+                : log.map(l => `<p><span class="text-slate-500">${new Date(l.at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</span> · ${escapeHtmlText(l.text)}</p>`).join('');
+        }
+
+        function adminCorrectCommit() {
+            saveData();
+            refreshAllTableViews();
+            renderAdminCorrectModal();
+        }
+
+        function adminChangeQty(sku, delta) {
+            if (!canAdminCorrect()) { denyNeedsAdmin(); return; }
+            const table = tables.find(t => t.id === adminCorrectTableId);
+            const item = table && table.items.find(i => i.sku === sku);
+            if (!item) return;
+            const oldQty = item.qty;
+            const newQty = oldQty + delta;
+            if (newQty <= 0) { adminRemoveItem(sku); return; }
+            const confirmed = getConfirmedQty(item);
+            item.qty = newQty;
+            // Lo que el admin agrega queda confirmado; si baja, primero se descuenta lo pendiente
+            item.confirmedQty = delta > 0 ? confirmed + delta : Math.min(confirmed, newQty);
+            logTableCorrection(table, `Admin: ${item.name} ${oldQty} → ${newQty}`);
+            adminCorrectCommit();
+        }
+
+        function adminRemoveItem(sku) {
+            if (!canAdminCorrect()) { denyNeedsAdmin(); return; }
+            const table = tables.find(t => t.id === adminCorrectTableId);
+            const item = table && table.items.find(i => i.sku === sku);
+            if (!item) return;
+            if (!confirm(`¿Quitar "${item.name}" (${item.qty}) de la cuenta de ${table.name}?`)) return;
+            table.items = table.items.filter(i => i.sku !== sku);
+            logTableCorrection(table, `Admin: se quitó ${item.qty} × ${item.name}`);
+            adminCorrectCommit();
+        }
+
+        function adminSaveNote(sku, text) {
+            if (!canAdminCorrect()) { denyNeedsAdmin(); return; }
+            const table = tables.find(t => t.id === adminCorrectTableId);
+            const item = table && table.items.find(i => i.sku === sku);
+            if (!item) return;
+            const clean = String(text || '').trim();
+            if (clean === (item.notes || '')) return;
+            item.notes = clean;
+            logTableCorrection(table, `Admin: nota de ${item.name} ${clean ? '→ "' + clean + '"' : 'borrada'}`);
+            saveData();
+            refreshAllTableViews();
+            renderAdminCorrectModal();
+        }
+
+        function adminAddItem() {
+            if (!canAdminCorrect()) { denyNeedsAdmin(); return; }
+            const table = tables.find(t => t.id === adminCorrectTableId);
+            const sku = document.getElementById('admin-correct-add-select').value;
+            const prod = catalog.find(p => p.sku === sku);
+            if (!table || !prod) return;
+            const existing = table.items.find(i => i.sku === sku);
+            if (existing) {
+                existing.qty += 1;
+                existing.confirmedQty = getConfirmedQty(existing) + 1;
+            } else {
+                table.items.push({ sku: prod.sku, name: prod.name, price: prod.price, image: prod.image, notes: '', qty: 1, confirmedQty: 1 });
+            }
+            logTableCorrection(table, `Admin: se agregó 1 × ${prod.name}`);
+            adminCorrectCommit();
         }
 
         function addProductSKUToActiveTable(sku) {
@@ -2099,6 +2410,10 @@
             const table = tables.find(t => t.id === activeWaitressTableId);
             const item = table.items.find(i => i.sku === sku);
             if (item) {
+                if (delta < 0 && item.qty + delta < getConfirmedQty(item)) {
+                    showToast('Ese producto ya está confirmado 🔒. Para quitarlo usa el candado (pide contraseña de admin).', 'warning');
+                    return;
+                }
                 item.qty += delta;
                 if (item.qty <= 0) {
                     table.items = table.items.filter(i => i.sku !== sku);
@@ -2112,6 +2427,10 @@
             document.getElementById('note-item-sku').value = sku;
             const table = tables.find(t => t.id === activeWaitressTableId);
             const item = table.items.find(i => i.sku === sku);
+            if (item && getConfirmedQty(item) > 0) {
+                showToast('Producto confirmado 🔒: no se puede cambiar la nota', 'warning');
+                return;
+            }
             document.getElementById('note-item-text').value = item ? (item.notes || '') : '';
             openModal('modal-item-note');
         }
@@ -2139,6 +2458,10 @@
 
             if (table.items.length === 0) {
                 showToast('No puedes pedir la cuenta en una mesa sin consumo ($0.00). Si se fueron, usa "Liberar Mesa".', 'warning');
+                return;
+            }
+            if (tablePendingCount(table) > 0) {
+                showToast('Primero confirma el pedido (hay productos por confirmar)', 'warning');
                 return;
             }
 
@@ -2214,6 +2537,11 @@
             const table = tables.find(t => t.id === targetId);
             if (!table || table.items.length === 0) {
                 showToast('No hay consumo registrado para cobrar. Si se fueron sin pedir, usa "Liberar Mesa".', 'warning');
+                return;
+            }
+
+            if (tablePendingCount(table) > 0) {
+                showToast('Primero confirma el pedido: hay productos por confirmar', 'warning');
                 return;
             }
 
@@ -2502,6 +2830,12 @@
                        </button>`
                     : '';
 
+                const adminCorrectBtn = table.items.length > 0
+                    ? `<button onclick="openAdminCorrectModal(${table.id})" class="w-full py-1.5 px-2 bg-amber-600/15 hover:bg-amber-600/25 text-amber-300 border border-amber-500/30 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1.5 mt-2">
+                            <i class="fa-solid fa-screwdriver-wrench"></i> Corregir pedido
+                       </button>`
+                    : '';
+
                 let quickCorrectionHtml = '';
                 if (table.status === 'paying') {
                     quickCorrectionHtml = `
@@ -2541,6 +2875,7 @@
                             <p class="text-xl font-black ${table.status !== 'free' ? 'text-emerald-400' : 'text-slate-600'}">$${total.toFixed(2)}</p>
                             ${itemsDetailHtml}
                             ${directChargeBtn}
+                            ${adminCorrectBtn}
                             ${quickCorrectionHtml}
                         </div>
                     </div>
@@ -3313,6 +3648,8 @@
                 }
 
                 cloudUnsubscribe = docRef.onSnapshot((snap) => {
+                    // Ignorar el "eco" de nuestros propios cambios aún no confirmados: traía datos viejos y hacía desaparecer lo recién agregado
+                    if (snap.metadata && snap.metadata.hasPendingWrites) return;
                     if (!snap.exists) {
                         if (customerLockedMesaCode) {
                             cloudSyncStatus = { state: 'error', msg: 'El restaurante aún no ha publicado datos' };
@@ -3455,6 +3792,7 @@
                                 <div>
                                     <h5 class="text-xs font-bold text-white">${item.name}</h5>
                                     <p class="text-[10px] text-slate-400">$${item.price.toFixed(2)} x ${item.qty} u.</p>
+                                    ${getPendingQty(item) > 0 ? `<p class="text-[10px] text-amber-300 font-semibold">⏳ ${getPendingQty(item)} por confirmar</p>` : ''}
                                 </div>
                             </div>
                             <span class="text-xs font-black text-emerald-400">$${(item.price * item.qty).toFixed(2)}</span>
