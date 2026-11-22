@@ -187,14 +187,32 @@
             <!-- Columna Izquierda: Sesión de Mesera y Mesas -->
             <div class="w-full lg:w-80 xl:w-96 bg-slate-900/60 border-b lg:border-b-0 lg:border-r border-slate-800 p-4 flex flex-col gap-4 overflow-y-auto shrink-0">
                 
-                <!-- Selector de Mesera Activa -->
+                <!-- Acceso de Mesera por PIN -->
                 <div class="bg-slate-950/80 p-3.5 rounded-2xl border border-slate-800 space-y-2">
-                    <label class="text-xs font-bold text-slate-300 flex items-center gap-2">
-                        <i class="fa-solid fa-id-badge text-orange-400"></i> Mesera en Turno:
-                    </label>
-                    <select id="waitress-session-select" onchange="setWaitressSession(this.value)" class="w-full bg-slate-900 border border-slate-700 text-white text-xs font-semibold rounded-xl p-2.5 focus:outline-none focus:border-orange-500">
-                    </select>
+                    <form id="waitress-login-box" onsubmit="loginWaitress(event)" class="space-y-2" autocomplete="off">
+                        <label class="text-xs font-bold text-slate-300 flex items-center gap-2">
+                            <i class="fa-solid fa-lock text-orange-400"></i> Acceso de Mesera
+                        </label>
+                        <select id="waitress-login-select" class="w-full bg-slate-900 border border-slate-700 text-white text-xs font-semibold rounded-xl p-2.5 focus:outline-none focus:border-orange-500">
+                        </select>
+                        <input type="password" id="waitress-pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="Tu PIN (4 a 6 dígitos)" class="w-full bg-slate-900 border border-slate-700 text-white text-sm font-bold tracking-[0.4em] text-center rounded-xl p-2.5 focus:outline-none focus:border-orange-500">
+                        <p id="waitress-login-error" class="hidden text-[11px] text-rose-400 font-semibold"></p>
+                        <button type="submit" class="w-full py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black rounded-xl shadow-md">Entrar</button>
+                    </form>
+                    <div id="waitress-session-box" class="hidden space-y-2">
+                        <label class="text-xs font-bold text-slate-300 flex items-center gap-2">
+                            <i class="fa-solid fa-id-badge text-orange-400"></i> Mesera en Turno:
+                        </label>
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="min-w-0">
+                                <p id="waitress-session-name" class="text-sm font-black text-white truncate"></p>
+                                <p id="waitress-session-shift" class="text-[10px] text-slate-400"></p>
+                            </div>
+                            <button type="button" onclick="logoutWaitress()" class="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-slate-800 hover:bg-rose-950/70 text-rose-400 border border-slate-700 whitespace-nowrap">Cerrar sesión</button>
+                        </div>
+                    </div>
                 </div>
+
 
                 <!-- Estado Rápido de Mesas del Salón -->
                 <div class="space-y-2">
@@ -242,6 +260,10 @@
                         <i class="fa-solid fa-cloud mr-1.5"></i> Nube
                     </button>
                 </div>
+
+                <button onclick="openAdminAuthModal('change')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-amber-950/60 text-amber-400 border border-slate-700 whitespace-nowrap shrink-0 flex items-center gap-1.5" title="Cambiar PIN de administrador">
+                    <i class="fa-solid fa-key"></i><span class="hidden sm:inline">Cambiar PIN</span>
+                </button>
 
                 <button onclick="lockAdminSession()" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-rose-950/70 text-rose-400 border border-slate-700 whitespace-nowrap shrink-0 flex items-center gap-1.5" title="Bloquear panel de administrador">
                     <i class="fa-solid fa-lock"></i><span class="hidden sm:inline">Bloquear Admin</span>
@@ -295,6 +317,11 @@
                             <div>
                                 <label class="block text-slate-300 font-semibold mb-1">Nombre Completo *</label>
                                 <input type="text" id="staff-name" required placeholder="ej. Mariana López" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-slate-300 font-semibold mb-1">PIN de acceso (4 a 6 dígitos)</label>
+                                <input type="password" id="staff-pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="new-password" placeholder="Obligatorio al registrar" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white tracking-[0.3em] focus:outline-none focus:border-amber-500">
+                                <p class="text-[10px] text-slate-500 mt-1">Al editar, déjalo vacío para conservar el PIN actual. Si ella lo olvida, escribe uno nuevo aquí.</p>
                             </div>
                             <div>
                                 <label class="block text-slate-300 font-semibold mb-1">Turno</label>
@@ -676,16 +703,27 @@
                 <button onclick="cancelAdminAuthModal()" class="text-slate-400 hover:text-white text-lg">&times;</button>
             </div>
 
-            <form onsubmit="verifyAdminPassword(event)" class="space-y-4 text-xs">
-                <div>
-                    <label class="block text-slate-300 font-semibold mb-1.5">Ingresa la contraseña de administrador:</label>
-                    <input type="password" id="admin-password-input" required autocomplete="current-password" placeholder="Contraseña..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-amber-500">
-                    <p id="admin-auth-error" class="text-[11px] text-rose-400 font-semibold mt-1.5 hidden">Contraseña incorrecta. Intenta de nuevo.</p>
+            <form onsubmit="verifyAdminPassword(event)" class="space-y-4 text-xs" autocomplete="off">
+                <p id="admin-auth-help" class="text-[11px] text-slate-400"></p>
+                <div id="admin-auth-current-wrap">
+                    <label id="admin-auth-current-label" class="block text-slate-300 font-semibold mb-1.5">PIN de administrador:</label>
+                    <input type="password" id="admin-password-input" autocomplete="off" placeholder="••••••" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white tracking-[0.3em] focus:outline-none focus:border-amber-500">
                 </div>
+                <div id="admin-auth-new-wrap" class="hidden space-y-3">
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1.5">Nuevo PIN o contraseña (6 a 32 caracteres):</label>
+                        <input type="password" id="admin-new-pin" maxlength="32" autocomplete="new-password" placeholder="Nuevo PIN / contraseña" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white tracking-[0.3em] focus:outline-none focus:border-amber-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1.5">Repítelo:</label>
+                        <input type="password" id="admin-new-pin2" maxlength="32" autocomplete="new-password" placeholder="Repetir" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white tracking-[0.3em] focus:outline-none focus:border-amber-500">
+                    </div>
+                </div>
+                <p id="admin-auth-error" class="text-[11px] text-rose-400 font-semibold hidden"></p>
 
                 <div class="flex gap-2">
                     <button type="button" onclick="cancelAdminAuthModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl">Cancelar</button>
-                    <button type="submit" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl shadow-lg">Entrar</button>
+                    <button type="submit" id="admin-auth-submit" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl shadow-lg">Entrar</button>
                 </div>
             </form>
         </div>
@@ -950,7 +988,11 @@
     <!-- ================= LÓGICA JAVASCRIPT ================= -->
     <script>
         // --- 1. CONFIGURACIÓN INICIAL Y FIREBASE ---
-        const ADMIN_PASSCODE = 'admin2027';
+        // Seguridad: la contraseña anterior ya NO está en el código (solo su huella, para migrar una única vez)
+        const LEGACY_ADMIN_HASH = 'cec84a08d3653688b0563aeee401438ce9d1891c2a0e8f3172770d468403dc2a';
+        const PBKDF2_ITER = 210000;
+        const ADMIN_IDLE_MS = 10 * 60 * 1000;
+        const WAITRESS_IDLE_MS = 15 * 60 * 1000;
         const FIREBASE_CONFIG = {
           apiKey: "AIzaSyA62K0surGjYVvhB9ZTAjzb_h-ML_oDAJE",
           authDomain: "restaurante-9bb07.firebaseapp.com",
@@ -1178,8 +1220,8 @@
             const chips = document.getElementById('paying-tables-chips');
             if (!banner || !chips) return;
 
-            const payingTables = tables.filter(t => t.status === 'paying');
-            const callingTables = tables.filter(t => t.calling);
+            const payingTables = tables.filter(t => t.status === 'paying' && canViewTable(t));
+            const callingTables = tables.filter(t => t.calling && canViewTable(t));
             if (payingTables.length === 0 && callingTables.length === 0) {
                 banner.classList.add('hidden');
                 chips.innerHTML = '';
@@ -1384,37 +1426,214 @@
             }
         }
 
-        function openAdminAuthModal() {
-            const input = document.getElementById('admin-password-input');
+        // --- SEGURIDAD: PIN DE ADMIN Y PIN POR MESERA ---
+        function bytesToHex(buf) { return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join(''); }
+        function cryptoAvailable() { return !!(window.crypto && crypto.subtle && crypto.getRandomValues); }
+        function randomSaltHex() { const a = new Uint8Array(16); crypto.getRandomValues(a); return bytesToHex(a); }
+        async function sha256Hex(text) {
+            return bytesToHex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)));
+        }
+        async function hashPin(pin, saltHex, iter) {
+            const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(pin)), 'PBKDF2', false, ['deriveBits']);
+            const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(saltHex), iterations: iter || PBKDF2_ITER, hash: 'SHA-256' }, key, 256);
+            return bytesToHex(bits);
+        }
+        function timingSafeEqual(a, b) {
+            a = String(a || ''); b = String(b || '');
+            if (a.length !== b.length) return false;
+            let r = 0;
+            for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+            return r === 0;
+        }
+        function isWeakPin(pin) {
+            if (/^(\d)\1+$/.test(pin)) return true;
+            return '01234567890123456789'.includes(pin) || '98765432109876543210'.includes(pin);
+        }
+        function escAttr(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+        // Bloqueo por intentos fallidos (3 fallos = espera creciente)
+        function getLockState(scope) { try { return JSON.parse(localStorage.getItem('gastro_lock_' + scope)) || { n: 0, until: 0 }; } catch (e) { return { n: 0, until: 0 }; } }
+        function setLockState(scope, st) { try { localStorage.setItem('gastro_lock_' + scope, JSON.stringify(st)); } catch (e) {} }
+        function lockRemainingSec(scope) { return Math.max(0, Math.ceil((getLockState(scope).until - Date.now()) / 1000)); }
+        function registerFailedAttempt(scope) {
+            const st = getLockState(scope);
+            st.n = (st.n || 0) + 1;
+            if (st.n % 3 === 0) {
+                const step = Math.floor(st.n / 3);
+                st.until = Date.now() + Math.min(30 * Math.pow(2, step - 1), 900) * 1000;
+            }
+            setLockState(scope, st);
+            return st;
+        }
+        function clearFailedAttempts(scope) { setLockState(scope, { n: 0, until: 0 }); }
+        function fmtWait(sec) { return sec >= 60 ? `${Math.ceil(sec / 60)} min` : `${sec} s`; }
+
+        // Cierre automático por inactividad
+        let lastActivityAt = Date.now();
+        ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { lastActivityAt = Date.now(); }, { passive: true }));
+        setInterval(() => {
+            const idle = Date.now() - lastActivityAt;
+            if (isAdminUnlocked && idle > ADMIN_IDLE_MS) {
+                lockAdminSession();
+                showToast('Modo Admin bloqueado por inactividad', 'info');
+            }
+            if (currentWaitressSession && idle > WAITRESS_IDLE_MS) {
+                logoutWaitress();
+                showToast('Sesión de mesera cerrada por inactividad', 'info');
+            }
+        }, 15000);
+
+        // --- ADMIN ---
+        let adminAuthMode = 'login';
+        let adminMigrationVerified = false;
+
+        function adminHasPin() { return !!(storeConfig.adminAuth && storeConfig.adminAuth.hash && storeConfig.adminAuth.salt); }
+
+        function showAdminAuthError(msg) {
             const err = document.getElementById('admin-auth-error');
-            input.value = '';
-            err.classList.add('hidden');
+            err.textContent = msg;
+            err.classList.remove('hidden');
+        }
+
+        function setAdminAuthMode(mode) {
+            adminAuthMode = mode;
+            const help = document.getElementById('admin-auth-help');
+            const curWrap = document.getElementById('admin-auth-current-wrap');
+            const curLabel = document.getElementById('admin-auth-current-label');
+            const curInput = document.getElementById('admin-password-input');
+            const newWrap = document.getElementById('admin-auth-new-wrap');
+            const submit = document.getElementById('admin-auth-submit');
+            document.getElementById('admin-auth-error').classList.add('hidden');
+            curInput.value = '';
+            document.getElementById('admin-new-pin').value = '';
+            document.getElementById('admin-new-pin2').value = '';
+            curInput.setAttribute('inputmode', 'text');
+            curInput.maxLength = 64;
+            curWrap.classList.toggle('hidden', mode === 'setup');
+            newWrap.classList.toggle('hidden', mode === 'login' || mode === 'migrate');
+            if (mode === 'login') {
+                help.textContent = 'Ingresa tu PIN de administrador.';
+                curLabel.textContent = 'PIN de administrador:';
+                submit.textContent = 'Entrar';
+            } else if (mode === 'migrate') {
+                help.textContent = 'Por seguridad, el sistema ahora usa un PIN propio. Primero confirma la contraseña actual y después crearás tu PIN nuevo.';
+                curLabel.textContent = 'Contraseña actual:';
+                submit.textContent = 'Continuar';
+            } else if (mode === 'setup') {
+                help.textContent = 'Crea tu PIN o contraseña de administrador (6 a 32 caracteres, puede llevar letras y números).';
+                submit.textContent = 'Guardar PIN y entrar';
+            } else {
+                help.textContent = 'Para cambiar el PIN, escribe el actual y luego el nuevo.';
+                curLabel.textContent = 'PIN actual:';
+                submit.textContent = 'Cambiar PIN';
+            }
+        }
+
+        function openAdminAuthModal(mode) {
+            if (!cryptoAvailable()) {
+                showToast('El acceso seguro requiere abrir el sistema desde https (o localhost)', 'error');
+                return;
+            }
+            adminMigrationVerified = false;
+            if (mode === 'change' && !adminHasPin()) mode = 'migrate';
+            setAdminAuthMode(mode || (adminHasPin() ? 'login' : 'migrate'));
             openModal('modal-admin-auth');
-            setTimeout(() => input.focus(), 50);
+            setTimeout(() => {
+                const el = document.getElementById(adminAuthMode === 'setup' ? 'admin-new-pin' : 'admin-password-input');
+                if (el) el.focus();
+            }, 50);
         }
 
         function cancelAdminAuthModal() {
+            adminMigrationVerified = false;
             closeModal('modal-admin-auth');
             document.getElementById('admin-password-input').value = '';
+            document.getElementById('admin-new-pin').value = '';
+            document.getElementById('admin-new-pin2').value = '';
             document.getElementById('admin-auth-error').classList.add('hidden');
         }
 
-        function verifyAdminPassword(e) {
+        async function verifyAdminSecret(secret) {
+            const a = storeConfig.adminAuth;
+            if (!a) return false;
+            const h = await hashPin(secret, a.salt, a.iter);
+            return timingSafeEqual(h, a.hash);
+        }
+
+        async function saveNewAdminPin() {
+            const p1 = document.getElementById('admin-new-pin').value.trim();
+            const p2 = document.getElementById('admin-new-pin2').value.trim();
+            if (p1.length < 6 || p1.length > 32) { showAdminAuthError('Debe tener de 6 a 32 caracteres.'); return false; }
+            if (/^\d+$/.test(p1) && isWeakPin(p1)) { showAdminAuthError('Ese PIN es muy fácil de adivinar. Evita secuencias y números repetidos.'); return false; }
+            if (p1 !== p2) { showAdminAuthError('Los dos PIN no coinciden.'); return false; }
+            const salt = randomSaltHex();
+            const hash = await hashPin(p1, salt, PBKDF2_ITER);
+            storeConfig.adminAuth = { salt, hash, iter: PBKDF2_ITER, updatedAt: new Date().toISOString() };
+            saveData();
+            try {
+                if (timingSafeEqual(await sha256Hex(p1), LEGACY_ADMIN_HASH)) {
+                    showToast('Guardado, pero esa clave ya era conocida: te conviene cambiarla pronto', 'warning');
+                }
+            } catch (e) {}
+            return true;
+        }
+
+        function unlockAdmin(msg) {
+            isAdminUnlocked = true;
+            lastActivityAt = Date.now();
+            try { sessionStorage.setItem('gastro_admin_unlocked', '1'); } catch (e) {}
+            closeModal('modal-admin-auth');
+            adminMigrationVerified = false;
+            switchRole('admin');
+            showToast(msg || 'Acceso a Modo Admin / Caja concedido', 'success');
+        }
+
+        async function verifyAdminPassword(e) {
             e.preventDefault();
             const input = document.getElementById('admin-password-input');
-            const err = document.getElementById('admin-auth-error');
+            const scope = 'admin';
+            try {
+                if (adminAuthMode === 'setup') {
+                    if (!adminMigrationVerified) { setAdminAuthMode(adminHasPin() ? 'login' : 'migrate'); return; }
+                    if (await saveNewAdminPin()) unlockAdmin('PIN de administrador guardado. ¡Acceso concedido!');
+                    return;
+                }
+                const rem = lockRemainingSec(scope);
+                if (rem > 0) { showAdminAuthError(`Demasiados intentos. Espera ${fmtWait(rem)} para volver a intentar.`); return; }
+                const typed = input.value;
+                if (!typed) { showAdminAuthError('Escribe tu PIN.'); return; }
 
-            if (input.value === ADMIN_PASSCODE) {
-                isAdminUnlocked = true;
-                try { sessionStorage.setItem('gastro_admin_unlocked', '1'); } catch (e) {}
-                closeModal('modal-admin-auth');
-                input.value = '';
-                err.classList.add('hidden');
-                switchRole('admin');
-                showToast('Acceso a Modo Admin / Caja concedido', 'success');
-            } else {
-                err.classList.remove('hidden');
-                input.select();
+                let ok = false;
+                if (adminAuthMode === 'migrate') {
+                    ok = timingSafeEqual(await sha256Hex(typed), LEGACY_ADMIN_HASH);
+                } else {
+                    ok = await verifyAdminSecret(typed);
+                }
+
+                if (!ok) {
+                    const st = registerFailedAttempt(scope);
+                    const wait = lockRemainingSec(scope);
+                    showAdminAuthError(wait > 0 ? `Demasiados intentos. Espera ${fmtWait(wait)}.` : `Incorrecto. Te quedan ${3 - (st.n % 3)} intentos antes del bloqueo temporal.`);
+                    input.value = '';
+                    input.focus();
+                    return;
+                }
+
+                clearFailedAttempts(scope);
+                if (adminAuthMode === 'login') {
+                    unlockAdmin();
+                } else if (adminAuthMode === 'migrate') {
+                    adminMigrationVerified = true;
+                    setAdminAuthMode('setup');
+                    setTimeout(() => document.getElementById('admin-new-pin').focus(), 50);
+                } else if (adminAuthMode === 'change') {
+                    if (await saveNewAdminPin()) {
+                        closeModal('modal-admin-auth');
+                        showToast('PIN de administrador actualizado', 'success');
+                    }
+                }
+            } catch (err) {
+                showAdminAuthError('No se pudo verificar el PIN en este navegador.');
             }
         }
 
@@ -1424,6 +1643,86 @@
             switchRole('waitress');
             showToast('Modo Admin bloqueado', 'info');
         }
+
+        // --- MESERA: ACCESO POR PIN ---
+        let waitressSessionRestored = false;
+        function waitressHasPin(st) { return !!(st && st.pinHash && st.pinSalt); }
+
+        function canViewTable(t) {
+            if (isAdminUnlocked) return true;
+            if (!currentWaitressSession) return false;
+            return t.status === 'free' || t.waiter === currentWaitressSession;
+        }
+
+        function showWaitressLoginError(msg) {
+            const el = document.getElementById('waitress-login-error');
+            if (!el) return;
+            el.textContent = msg;
+            el.classList.remove('hidden');
+        }
+
+        function updateWaitressSessionUI() {
+            const loginBox = document.getElementById('waitress-login-box');
+            const sessBox = document.getElementById('waitress-session-box');
+            if (!loginBox || !sessBox) return;
+            if (currentWaitressSession) {
+                const st = staff.find(s => s.name === currentWaitressSession);
+                document.getElementById('waitress-session-name').textContent = currentWaitressSession;
+                document.getElementById('waitress-session-shift').textContent = st ? st.shift : '';
+                loginBox.classList.add('hidden');
+                sessBox.classList.remove('hidden');
+            } else {
+                loginBox.classList.remove('hidden');
+                sessBox.classList.add('hidden');
+            }
+        }
+
+        async function loginWaitress(e) {
+            if (e) e.preventDefault();
+            const select = document.getElementById('waitress-login-select');
+            const pinInput = document.getElementById('waitress-pin-input');
+            document.getElementById('waitress-login-error').classList.add('hidden');
+            if (!cryptoAvailable()) { showWaitressLoginError('Abre el sistema desde https para iniciar sesión.'); return; }
+            const st = staff.find(s => String(s.id) === select.value && s.status === 'active');
+            if (!st) { showWaitressLoginError('Selecciona tu nombre.'); return; }
+            if (!waitressHasPin(st)) { showWaitressLoginError('Aún no tienes PIN. Pídele al administrador que te lo asigne.'); return; }
+            const scope = 'w' + st.id;
+            const rem = lockRemainingSec(scope);
+            if (rem > 0) { showWaitressLoginError(`Demasiados intentos. Espera ${fmtWait(rem)}.`); return; }
+            const pin = pinInput.value.trim();
+            if (!/^\d{4,6}$/.test(pin)) { showWaitressLoginError('Escribe tu PIN de 4 a 6 dígitos.'); return; }
+            try {
+                const h = await hashPin(pin, st.pinSalt, st.pinIter);
+                if (timingSafeEqual(h, st.pinHash)) {
+                    clearFailedAttempts(scope);
+                    currentWaitressSession = st.name;
+                    activeWaitressTableId = null;
+                    lastActivityAt = Date.now();
+                    try { sessionStorage.setItem('gastro_waitress_session', st.name); } catch (err) {}
+                    pinInput.value = '';
+                    updateWaitressSessionUI();
+                    refreshAllTableViews();
+                    showToast(`¡Hola, ${st.name}!`, 'success');
+                } else {
+                    const state = registerFailedAttempt(scope);
+                    const wait = lockRemainingSec(scope);
+                    showWaitressLoginError(wait > 0 ? `Demasiados intentos. Espera ${fmtWait(wait)}.` : `PIN incorrecto. Te quedan ${3 - (state.n % 3)} intentos.`);
+                    pinInput.value = '';
+                    pinInput.focus();
+                }
+            } catch (err) {
+                showWaitressLoginError('No se pudo verificar el PIN en este navegador.');
+            }
+        }
+
+        function logoutWaitress() {
+            currentWaitressSession = '';
+            activeWaitressTableId = null;
+            try { sessionStorage.removeItem('gastro_waitress_session'); } catch (e) {}
+            updateWaitressSessionUI();
+            refreshAllTableViews();
+        }
+
 
         // --- NOMBRE DEL RESTAURANTE Y WI-FI OPCIONAL ---
         function updateRestaurantName(newName) {
@@ -1914,26 +2213,34 @@
 
         // --- MODO 1: MESERA (OPERACIÓN) ---
         function populateWaitressSessionSelect() {
-            const select = document.getElementById('waitress-session-select');
-            select.innerHTML = '';
-            
+            const select = document.getElementById('waitress-login-select');
+            if (!select) return;
+
+            if (!waitressSessionRestored) {
+                waitressSessionRestored = true;
+                try {
+                    const saved = sessionStorage.getItem('gastro_waitress_session');
+                    const st = saved ? staff.find(s => s.name === saved && s.status === 'active' && waitressHasPin(s)) : null;
+                    currentWaitressSession = st ? st.name : '';
+                    if (!st) sessionStorage.removeItem('gastro_waitress_session');
+                } catch (e) {}
+            }
+
+            if (currentWaitressSession && !staff.some(s => s.name === currentWaitressSession && s.status === 'active')) {
+                currentWaitressSession = '';
+                activeWaitressTableId = null;
+                try { sessionStorage.removeItem('gastro_waitress_session'); } catch (e) {}
+            }
+
+            const prev = select.value;
             const activeStaff = staff.filter(s => s.status === 'active');
-            
             if (activeStaff.length === 0) {
                 select.innerHTML = '<option value="">(No hay meseras activas en Admin)</option>';
-                currentWaitressSession = '';
             } else {
-                activeStaff.forEach(s => {
-                    select.innerHTML += `<option value="${s.name}">${s.name} (${s.shift})</option>`;
-                });
-                currentWaitressSession = select.value;
+                select.innerHTML = activeStaff.map(s => `<option value="${escAttr(s.id)}">${escAttr(s.name)} (${escAttr(s.shift)})</option>`).join('');
+                if (prev && activeStaff.some(s => String(s.id) === prev)) select.value = prev;
             }
-        }
-
-        function setWaitressSession(val) {
-            currentWaitressSession = val;
-            renderWaitressTablesList();
-            renderWaitressOrderPanel();
+            updateWaitressSessionUI();
         }
 
         function renderWaitressTablesList() {
@@ -1941,10 +2248,16 @@
             const badge = document.getElementById('waitress-active-tables-badge');
             container.innerHTML = '';
 
-            const activeCount = tables.filter(t => t.status !== 'free').length;
+            const visibleTables = tables.filter(canViewTable);
+            const activeCount = visibleTables.filter(t => t.status !== 'free').length;
             badge.textContent = `${activeCount} activas`;
 
-            tables.forEach(table => {
+            if (!currentWaitressSession && !isAdminUnlocked) {
+                container.innerHTML = '<div class="col-span-2 lg:col-span-1 p-4 rounded-xl border border-dashed border-slate-700 text-center text-xs text-slate-400"><i class="fa-solid fa-lock text-orange-400 text-base mb-1.5 block"></i>Inicia sesión con tu PIN para ver y atender tus mesas.</div>';
+                return;
+            }
+
+            visibleTables.forEach(table => {
                 const subtotal = table.items.reduce((sum, item) => sum + (item.price * item.qty), 0);
                 const isSelected = activeWaitressTableId === table.id;
 
@@ -1993,9 +2306,14 @@
             const table = tables.find(t => t.id === tableId);
             if (!table) return;
 
+            if (!canViewTable(table)) {
+                showToast(currentWaitressSession ? 'Esa mesa la atiende otra mesera' : 'Inicia sesión con tu PIN para atender mesas', 'warning');
+                return;
+            }
+
             if (table.status === 'free') {
                 if (!currentWaitressSession) {
-                    showToast('Por favor activa al menos una mesera en Admin primero', 'warning');
+                    showToast('Inicia sesión con tu PIN para abrir mesas', 'warning');
                     return;
                 }
                 pendingScanTableId = table.id;
@@ -2010,12 +2328,12 @@
         }
 
         function confirmQuickOpenTable(guestCount) {
-            if (!pendingScanTableId) return;
+            if (!pendingScanTableId || !currentWaitressSession) return;
             const table = tables.find(t => t.id === pendingScanTableId);
             if (table) {
                 table.status = 'occupied';
                 table.guests = guestCount;
-                table.waiter = currentWaitressSession || 'Sofía Martínez';
+                table.waiter = currentWaitressSession;
                 
                 activeWaitressTableId = table.id;
                 saveData();
@@ -2028,6 +2346,10 @@
 
         function renderWaitressOrderPanel() {
             const container = document.getElementById('waitress-order-panel');
+            if (activeWaitressTableId !== null) {
+                const _t = tables.find(t => t.id === activeWaitressTableId);
+                if (!_t || !canViewTable(_t)) activeWaitressTableId = null;
+            }
             const keepScroll = (id) => { const el = document.getElementById(id); return el ? el.scrollTop : 0; };
             const sameTable = container.dataset.tableId === String(activeWaitressTableId);
             const savedScroll = sameTable
@@ -2960,21 +3282,44 @@
         }
 
         // --- GESTIÓN DE PERSONAL ---
-        function saveStaffAdmin(e) {
+        async function saveStaffAdmin(e) {
             e.preventDefault();
             const id = document.getElementById('staff-id').value;
             const name = document.getElementById('staff-name').value.trim();
             const shift = document.getElementById('staff-shift').value;
             const status = document.getElementById('staff-status').value;
+            const pin = document.getElementById('staff-pin').value.trim();
+            const existing = id ? staff.find(s => s.id == id) : null;
 
-            if (id) {
-                const st = staff.find(s => s.id == id);
-                if (st) {
-                    st.name = name;
-                    st.shift = shift;
-                    st.status = status;
+            if (pin) {
+                if (!/^\d{4,6}$/.test(pin)) { showToast('El PIN debe tener de 4 a 6 dígitos (solo números)', 'error'); return; }
+                if (isWeakPin(pin)) { showToast('PIN muy fácil de adivinar: evita 1234, 0000 o números repetidos', 'error'); return; }
+            } else if (!existing || !waitressHasPin(existing)) {
+                showToast('Asigna un PIN de 4 a 6 dígitos a la mesera', 'warning');
+                return;
+            }
+            if (pin && !cryptoAvailable()) { showToast('Para guardar PIN abre el sistema desde https (o localhost)', 'error'); return; }
+
+            let pinFields = null;
+            if (pin) {
+                const salt = randomSaltHex();
+                pinFields = { pinSalt: salt, pinHash: await hashPin(pin, salt, PBKDF2_ITER), pinIter: PBKDF2_ITER };
+            }
+
+            if (existing) {
+                const oldName = existing.name;
+                existing.name = name;
+                existing.shift = shift;
+                existing.status = status;
+                if (pinFields) Object.assign(existing, pinFields);
+                if (oldName !== name) {
+                    tables.forEach(t => { if (t.waiter === oldName) t.waiter = name; });
+                    if (currentWaitressSession === oldName) {
+                        currentWaitressSession = name;
+                        try { sessionStorage.setItem('gastro_waitress_session', name); } catch (err) {}
+                    }
                 }
-                showToast(`Mesera ${name} actualizada`, 'success');
+                showToast(`Mesera ${name} actualizada${pinFields ? ' (PIN nuevo guardado)' : ''}`, 'success');
             } else {
                 staff.push({
                     id: Date.now(),
@@ -2982,16 +3327,19 @@
                     shift,
                     status,
                     salesCount: 0,
-                    salesTotal: 0
+                    salesTotal: 0,
+                    ...pinFields
                 });
-                showToast(`¡Mesera ${name} registrada!`, 'success');
+                showToast(`¡Mesera ${name} registrada con su PIN!`, 'success');
             }
 
             saveData();
             renderAdminStaff();
             populateWaitressSessionSelect();
+            refreshAllTableViews();
             resetStaffForm();
         }
+
 
         function toggleStaffStatus(id) {
             const st = staff.find(s => s.id == id);
@@ -3028,6 +3376,7 @@
             document.getElementById('staff-name').value = st.name;
             document.getElementById('staff-shift').value = st.shift;
             document.getElementById('staff-status').value = st.status;
+            document.getElementById('staff-pin').value = '';
         }
 
         function resetStaffForm() {
@@ -3054,6 +3403,9 @@
                             <p class="text-[10px] text-slate-400">${st.shift}</p>
                             <span class="inline-block mt-0.5 px-2 py-0.5 rounded text-[9px] font-bold ${isOn ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">
                                 ${isOn ? '🟢 Activa' : '🔴 Inactiva'}
+                            </span>
+                            <span class="inline-block mt-0.5 ml-1 px-2 py-0.5 rounded text-[9px] font-bold ${st.pinHash ? 'bg-sky-500/20 text-sky-300' : 'bg-amber-500/20 text-amber-300'}">
+                                ${st.pinHash ? '🔒 PIN asignado' : '⚠️ Sin PIN'}
                             </span>
                         </div>
                     </div>
